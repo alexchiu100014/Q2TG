@@ -11,6 +11,7 @@ import Instance from '../models/Instance';
 import getAboutText from '../utils/getAboutText';
 import random from '../utils/random';
 import { Friend, Group, QQClient } from '../client/QQClient';
+import posthog from '../models/posthog';
 
 const DEFAULT_FILTER_ID = 114; // 514
 
@@ -96,6 +97,7 @@ export default class ConfigService {
     catch (e) {
       avatar = null;
       this.log.error(`加载 ${group.name} (${gin}) 的头像失败`, e);
+      posthog.capture('加载头像失败', { error: e });
     }
     const message = `${group.name}\n${group.gid}`;
     await (await this.owner).sendMessage({
@@ -172,6 +174,7 @@ export default class ConfigService {
       }
       catch (e) {
         errorMessage += `\n添加到文件夹失败：${e.message}`;
+        posthog.capture('添加到文件夹失败', { error: e });
       }
 
       // 关闭【添加成员】快捷条
@@ -181,6 +184,7 @@ export default class ConfigService {
       }
       catch (e) {
         errorMessage += `\n关闭【添加成员】快捷条失败：${e.message}`;
+        posthog.capture('关闭【添加成员】快捷条失败', { error: e });
       }
 
       // 关联写入数据库
@@ -201,6 +205,7 @@ export default class ConfigService {
       }
       catch (e) {
         errorMessage += `\n更新头像失败：${e.message}`;
+        posthog.capture('更新头像失败', { error: e });
       }
 
       // 完成
@@ -215,6 +220,7 @@ export default class ConfigService {
     }
     catch (e) {
       this.log.error('创建群组并关联失败', e);
+      posthog.capture('创建群组并关联失败', { error: e });
       await (await this.owner).sendMessage(`创建群组并关联${isFinish ? '成功了但没完全成功' : '失败'}\n<code>${e}</code>`);
     }
   }
@@ -253,6 +259,7 @@ export default class ConfigService {
       }
       catch (e) {
         this.log.error(e);
+        posthog.capture('createLinkGroup 出错', { error: e });
         await (await this.owner).sendMessage(`错误：<code>${e}</code>`);
       }
     }
@@ -294,6 +301,7 @@ export default class ConfigService {
       }
       catch (e) {
         this.log.error(errorText, e);
+        posthog.capture('设置文件夹失败', { error: e });
         await (await this.owner).sendMessage(errorText + `\n<code>${e}</code>`);
       }
     }

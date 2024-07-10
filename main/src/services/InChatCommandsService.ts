@@ -12,6 +12,7 @@ import ZincSearch from 'zincsearch-node';
 import env from '../models/env';
 import { QQClient, Group, GroupMemberInfo } from '../client/QQClient';
 import { Member as OicqMember } from '@icqqjs/icqq';
+import posthog from '../models/posthog';
 
 export default class InChatCommandsService {
   private readonly log: Logger;
@@ -214,6 +215,7 @@ export default class InChatCommandsService {
       });
     }
     catch (e) {
+      posthog.capture('禁言请求出错', { error: e });
       await message.reply({
         message: `<i>错误</i>\n${e.message}`,
       });

@@ -12,6 +12,7 @@ import { Pair } from '../models/Pair';
 import env from '../models/env';
 import flags from '../constants/flags';
 import { MessageEvent, QQClient, Group } from '../client/QQClient';
+import posthog from '../models/posthog';
 
 export default class {
   private readonly log: Logger;
@@ -60,6 +61,7 @@ export default class {
     // 异步发送，为了让 /q 先到达
     this.sendQuote(pair, sourceMessage).catch(async e => {
       this.log.error(e);
+      posthog.capture('sendQuote 错误', { error: e });
       await event.reply(e.toString(), true);
     });
   };
@@ -94,6 +96,7 @@ export default class {
     // 异步发送，为了让 /q 先到达
     this.sendQuote(pair, sourceMessage).catch(async e => {
       this.log.error(e);
+      posthog.capture('sendQuote 错误', { error: e });
       await message.reply({
         message: e.toString(),
       });

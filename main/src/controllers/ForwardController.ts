@@ -19,6 +19,7 @@ import {
   GroupMemberInfo,
 } from '../client/QQClient';
 import { Member as OicqGroupMember } from '@icqqjs/icqq';
+import posthog from '../models/posthog';
 
 export default class ForwardController {
   private readonly forwardService: ForwardService;
@@ -91,6 +92,7 @@ export default class ForwardController {
     }
     catch (e) {
       this.log.error('处理 QQ 消息时遇到问题', e);
+      posthog.capture('处理 QQ 消息时遇到问题', { error: e });
     }
   };
 
@@ -139,6 +141,7 @@ export default class ForwardController {
     }
     catch (e) {
       this.log.error('处理 Telegram 消息时遇到问题', e);
+      posthog.capture('处理 Telegram 消息时遇到问题', { error: e });
     }
   };
 
@@ -155,6 +158,7 @@ export default class ForwardController {
     }
     catch (e) {
       this.log.error('处理 QQ 群成员增加事件时遇到问题', e);
+      posthog.capture('处理 QQ 群成员增加事件时遇到问题', { error: e });
     }
   };
 
@@ -173,6 +177,7 @@ export default class ForwardController {
     }
     catch (e) {
       this.log.error('处理 TG 群成员增加事件时遇到问题', e);
+      posthog.capture('处理 TG 群成员增加事件时遇到问题', { error: e });
     }
   };
 

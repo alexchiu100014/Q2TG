@@ -3,7 +3,7 @@ import Instance from './models/Instance';
 import db from './models/db';
 import api from './api';
 import env from './models/env';
-import './models/posthog';
+import posthog from './models/posthog';
 
 (async () => {
   configure({
@@ -18,6 +18,7 @@ import './models/posthog';
 
   process.on('unhandledRejection', error => {
     log.error('UnhandledException: ', error);
+    posthog.capture('UnhandledException', { error });
   });
 
   await api.startListening();
@@ -32,6 +33,8 @@ import './models/posthog';
       await Instance.start(instanceEntry.id);
     }
   }
+
+  posthog.capture('启动完成', { instanceCount: instanceEntries.length });
 
   setTimeout(async () => {
     for (const instance of Instance.instances.filter(it => it.workMode === 'group')) {
