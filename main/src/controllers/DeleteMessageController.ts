@@ -1,10 +1,9 @@
 import DeleteMessageService from '../services/DeleteMessageService';
 import Telegram from '../client/Telegram';
-import OicqClient from '../client/OicqClient';
 import { Api } from 'telegram';
-import { FriendRecallEvent, GroupRecallEvent } from '@icqqjs/icqq';
 import { DeletedMessageEvent } from 'telegram/events/DeletedMessage';
 import Instance from '../models/Instance';
+import { MessageRecallEvent, QQClient } from '../client/QQClient';
 
 export default class DeleteMessageController {
   private readonly deleteMessageService: DeleteMessageService;
@@ -12,13 +11,12 @@ export default class DeleteMessageController {
   constructor(private readonly instance: Instance,
               private readonly tgBot: Telegram,
               private readonly tgUser: Telegram,
-              private readonly oicq: OicqClient) {
+              private readonly oicq: QQClient) {
     this.deleteMessageService = new DeleteMessageService(this.instance, tgBot);
     tgBot.addNewMessageEventHandler(this.onTelegramMessage);
     tgBot.addEditedMessageEventHandler(this.onTelegramEditMessage);
     tgUser.addDeletedMessageEventHandler(this.onTgDeletedMessage);
-    oicq.on('notice.friend.recall', this.onQqRecall);
-    oicq.on('notice.group.recall', this.onQqRecall);
+    oicq.addMessageRecallEventHandler(this.onQqRecall);
   }
 
   private onTelegramMessage = async (message: Api.Message) => {
@@ -42,8 +40,8 @@ export default class DeleteMessageController {
     return await this.onTelegramMessage(message);
   };
 
-  private onQqRecall = async (event: FriendRecallEvent | GroupRecallEvent) => {
-    const pair = this.instance.forwardPairs.find('friend' in event ? event.friend : event.group);
+  private onQqRecall = async (event: MessageRecallEvent) => {
+    const pair = this.instance.forwardPairs.find(event.chat);
     if (!pair) return;
     await this.deleteMessageService.handleQqRecall(event, pair);
   };

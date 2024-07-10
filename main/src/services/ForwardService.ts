@@ -1,13 +1,8 @@
 import Telegram from '../client/Telegram';
 import {
   FaceElem,
-  Forwardable,
-  Group,
-  GroupMessageEvent,
-  MessageElem, MessageRet,
-  MiraiElem,
-  PrivateMessageEvent,
-  PttElem,
+  Group as OicqGroup,
+  MessageElem, PttElem,
   Quotable,
   segment,
   Sendable,
@@ -27,7 +22,7 @@ import fsP from 'fs/promises';
 import eviltransform from 'eviltransform';
 import silk from '../encoding/silk';
 import axios from 'axios';
-import { md5B64, md5Hex } from '../utils/hashing';
+import { md5Hex } from '../utils/hashing';
 import Instance from '../models/Instance';
 import { Pair } from '../models/Pair';
 import OicqClient from '../client/OicqClient';
@@ -38,18 +33,16 @@ import convert from '../helpers/convert';
 import { QQMessageSent } from '../types/definitions';
 import ZincSearch from 'zincsearch-node';
 import { speech as AipSpeechClient } from 'baidu-aip-sdk';
-import random from '../utils/random';
-import { escapeXml } from '@icqqjs/icqq/lib/common';
 import Docker from 'dockerode';
 import ReplyKeyboardHide = Api.ReplyKeyboardHide;
 import env from '../models/env';
 import { CustomFile } from 'telegram/client/uploads';
 import flags from '../constants/flags';
 import BigInteger from 'big-integer';
-import { Image } from '@icqqjs/icqq/lib/message';
 import probe from 'probe-image-size';
 import markdownEscape from 'markdown-escape';
 import pastebin from '../utils/pastebin';
+import { MessageEvent, QQClient } from '../client/QQClient';
 
 const NOT_CHAINABLE_ELEMENTS = ['flash', 'record', 'video', 'location', 'share', 'json', 'xml', 'poke'];
 const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/apng', 'image/webp', 'image/gif', 'image/bmp', 'image/tiff', 'image/x-icon', 'image/avif', 'image/heic', 'image/heif'];
@@ -63,7 +56,7 @@ export default class ForwardService {
 
   constructor(private readonly instance: Instance,
               private readonly tgBot: Telegram,
-              private readonly oicq: OicqClient) {
+              private readonly oicq: QQClient) {
     this.log = getLogger(`ForwardService - ${instance.id}`);
     if (env.ZINC_URL) {
       this.zincSearch = new ZincSearch({
@@ -79,7 +72,7 @@ export default class ForwardService {
         env.BAIDU_SECRET_KEY,
       );
     }
-    if (oicq.signDockerId) {
+    if (oicq instanceof OicqClient && oicq.signDockerId) {
       const socket = new Docker({ socketPath: '/var/run/docker.sock' });
       const container = socket.getContainer(oicq.signDockerId);
       this.restartSignCallbackHandle = tgBot.registerCallback(async (event) => {
@@ -131,7 +124,7 @@ export default class ForwardService {
     }
   }
 
-  public async forwardFromQq(event: PrivateMessageEvent | GroupMessageEvent, pair: Pair) {
+  public async forwardFromQq(event: MessageEvent, pair: Pair) {
     const tempFiles: FileResult[] = [];
     try {
       let message = '',
@@ -140,20 +133,20 @@ export default class ForwardService {
         replyTo = 0,
         forceDocument = false;
       let messageHeader = '', sender = '';
-      if (event.message_type === 'group') {
+      if (!event.dm) {
         // 产生头部，这和工作模式没有关系
-        sender = event.sender.card || event.sender.nickname;
+        sender = event.from.name;
         if (event.anonymous) {
           sender = `[${sender}]${event.anonymous.name}`;
         }
         if ((pair.flags | this.instance.flags) & flags.COLOR_EMOJI_PREFIX) {
-          messageHeader += emoji.color(event.sender.user_id);
+          messageHeader += emoji.color(event.from.id);
         }
         messageHeader += `<b>${helper.htmlEscape(sender)}</b>: `;
       }
       const useSticker = (file: FileLike) => {
         files.push(file);
-        if (event.message_type === 'group') {
+        if (!event.dm) {
           buttons.push(Button.inline(`${sender}:`));
           messageHeader = '';
         }
@@ -206,7 +199,7 @@ export default class ForwardService {
             break;
           }
           case 'at': {
-            if (event.source?.user_id === elem.qq || event.source?.user_id === this.oicq.uin)
+            if (event.replyTo?.fromId === elem.qq || event.replyTo?.fromId === this.oicq.uin)
               break;
             if (env.WEB_ENDPOINT && typeof elem.qq === 'number') {
               message += `<a href="${helper.generateRichHeaderUrl(pair.apiKey, elem.qq)}">[<i>${helper.htmlEscape(elem.text)}</i>]</a>`;
@@ -306,8 +299,8 @@ export default class ForwardService {
             const temp = await createTempFile({ postfix: '.ogg' });
             tempFiles.push(temp);
             url = elem.url;
-            if (!url) {
-              const refetchMessage = await this.oicq.getMsg(event.message_id);
+            if (!url && this.oicq instanceof OicqClient) {
+              const refetchMessage = await this.oicq.oicq.getMsg(event.messageId);
               url = (refetchMessage.message.find(it => it.type === 'record') as PttElem).url;
             }
             await silk.decode(await fetchFile(url), temp.path);
@@ -383,14 +376,14 @@ export default class ForwardService {
       message = message.trim();
 
       // 处理回复
-      if (event.source) {
+      if (event.replyTo) {
         try {
           const quote = await db.message.findFirst({
             where: {
               qqRoomId: pair.qqRoomId,
-              seq: event.source.seq,
+              seq: event.replyTo.seq,
               // rand: event.source.rand,
-              qqSenderId: event.source.user_id,
+              qqSenderId: event.replyTo.fromId,
               instanceId: this.instance.id,
             },
           });
@@ -401,9 +394,9 @@ export default class ForwardService {
             message += '\n\n<i>*回复消息找不到</i>';
             this.log.error('回复消息找不到', {
               qqRoomId: pair.qqRoomId,
-              seq: event.source.seq,
-              rand: event.source.rand,
-              qqSenderId: event.source.user_id,
+              seq: event.replyTo.seq,
+              rand: event.replyTo.rand,
+              qqSenderId: event.replyTo.fromId,
               instanceId: this.instance.id,
             });
           }
@@ -414,7 +407,7 @@ export default class ForwardService {
         }
       }
 
-      if (this.instance.workMode === 'personal' && event.message_type === 'group' && event.atme && !replyTo) {
+      if (this.instance.workMode === 'personal' && !event.dm && event.atMe && !replyTo) {
         message += `\n<b>@${this.instance.userMe.usernames?.length ?
           this.instance.userMe.usernames[0].username :
           this.instance.userMe.username}</b>`;
@@ -431,7 +424,7 @@ export default class ForwardService {
       else if (files.length) {
         messageToSend.file = files;
       }
-      else if (event.message_type === 'group' && (pair.flags | this.instance.flags) & flags.RICH_HEADER && env.WEB_ENDPOINT
+      else if (!event.dm && (pair.flags | this.instance.flags) & flags.RICH_HEADER && env.WEB_ENDPOINT
         // 当消息包含链接时不显示 RICH HEADER
         && !isContainsUrl(message)) {
         // 没有文件时才能显示链接预览
@@ -440,7 +433,7 @@ export default class ForwardService {
         // https://github.com/tdlib/td/blob/437c2d0c6e0ad104022d5ad86ddc8aedc41cb7a8/td/generate/scheme/telegram_api.tl#L1841
         // https://github.com/gram-js/gramjs/pull/633
         messageToSend.file = new Api.InputMediaWebPage({
-          url: helper.generateRichHeaderUrl(pair.apiKey, event.sender.user_id, messageHeader),
+          url: helper.generateRichHeaderUrl(pair.apiKey, event.from.id, messageHeader),
           forceSmallMedia: true,
           optional: true,
         });
@@ -489,7 +482,7 @@ export default class ForwardService {
         }, 3000);
       }
 
-      if (this.instance.workMode === 'personal' && event.message_type === 'group' && event.atall) {
+      if (this.instance.workMode === 'personal' && !event.dm && event.atAll) {
         await tgMessage.pin({ notify: false });
       }
       return { tgMessage, richHeaderUsed };
@@ -567,37 +560,13 @@ export default class ForwardService {
         IMAGE_MIMES.includes(message.document?.mimeType)) {
         if ('spoiler' in message.media && message.media.spoiler) {
           isSpoilerPhoto = true;
-          const msgList: Forwardable[] = [{
-            user_id: this.oicq.uin,
-            nickname: messageHeader.substring(0, messageHeader.length - 3),
-            message: {
-              type: 'image',
-              file: await message.downloadMedia({}),
-              asface: !!message.sticker,
-            },
-          }];
-          if (message.message) {
-            msgList.push({
-              user_id: this.oicq.uin,
-              nickname: messageHeader.substring(0, messageHeader.length - 3),
-              message: message.message,
-            });
-          }
-          const fake = await this.oicq.makeForwardMsgSelf(msgList);
-          chain.push({
-            type: 'xml',
-            id: 60,
-            data: `<?xml version="1.0" encoding="utf-8"?>` +
-              `<msg serviceID="35" templateID="1" action="viewMultiMsg" brief="[Spoiler 图片]"
- m_resid="${fake.resid}" m_fileName="${random.fakeUuid().toUpperCase()}" tSum="${fake.tSum}"
- sourceMsgId="0" url="" flag="3" adverSign="0" multiMsgFlag="0"><item layout="1"
- advertiser_id="0" aid="0"><title size="34" maxLines="2" lineSpace="12"
->${escapeXml(messageHeader.substring(0, messageHeader.length - 2))}</title
-><title size="26" color="#777777" maxLines="2" lineSpace="12">Spoiler 图片</title
->${message.message ? `<title color="#303133" size="26">${escapeXml(message.message)}</title>` : ''
-              }<hr hidden="false" style="0" /><summary size="26" color="#777777">请谨慎查看</summary
-></item><source name="Q2TG" icon="" action="" appid="-1" /></msg>`.replaceAll('\n', ''),
-          });
+
+          chain.push(...await this.oicq.createSpoilerImageEndpoint({
+            type: 'image',
+            file: await message.downloadMedia({}),
+            asface: !!message.sticker,
+          }, messageHeader.substring(0, messageHeader.length - 3), message.message));
+
           brief += '[Spoiler 图片]';
           markdownCompatible = false;
         }
@@ -703,7 +672,7 @@ export default class ForwardService {
         if (file.size.leq(50 * 1024 * 1024)) {
           chain.push('\n');
           useText('文件正在上传中…');
-          if (pair.qq instanceof Group) {
+          if ('gid' in pair.qq) {
             pair.qq.fs.upload(await message.downloadMedia({}), '/',
               fileNameAttribute ? fileNameAttribute.fileName : 'file')
               .catch(err => pair.qq.sendMsg(`上传失败：\n${err.message}`));
@@ -832,7 +801,7 @@ export default class ForwardService {
           tempFiles.forEach(it => it.cleanup());
           return [{
             ...messageSent,
-            senderId: pair.instanceMapForTg[senderId].client.uin,
+            senderId: pair.instanceMapForTg[senderId] instanceof OicqGroup ? pair.instanceMapForTg[senderId].client.uin : 0,//TODO
             brief,
           }];
         }
@@ -862,7 +831,8 @@ export default class ForwardService {
         let messageToSend: Sendable = chainableElements;
         if (chainableElements.some(it => typeof it === 'object' && it.type === 'markdown')) {
           this.log.debug(chainableElements);
-          messageToSend = await pair.qq.uploadLongMsg(chainableElements);
+          throw new Error('markdown 早寄了');
+          // messageToSend = await pair.qq.uploadLongMsg(chainableElements);
         }
         qqMessages.push({
           ...await pair.qq.sendMsg(messageToSend, source),

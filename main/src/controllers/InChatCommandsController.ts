@@ -2,12 +2,10 @@ import InChatCommandsService from '../services/InChatCommandsService';
 import { getLogger, Logger } from 'log4js';
 import Instance from '../models/Instance';
 import Telegram from '../client/Telegram';
-import OicqClient from '../client/OicqClient';
 import { Api } from 'telegram';
-import { Group } from '@icqqjs/icqq';
-import RecoverMessageHelper from '../helpers/RecoverMessageHelper';
 import flags from '../constants/flags';
 import { editFlags } from '../utils/flagControl';
+import { QQClient, Group } from '../client/QQClient';
 
 export default class InChatCommandsController {
   private readonly service: InChatCommandsService;
@@ -17,7 +15,7 @@ export default class InChatCommandsController {
     private readonly instance: Instance,
     private readonly tgBot: Telegram,
     private readonly tgUser: Telegram,
-    private readonly oicq: OicqClient,
+    private readonly oicq: QQClient,
   ) {
     this.log = getLogger(`InChatCommandsController - ${instance.id}`);
     this.service = new InChatCommandsService(instance, tgBot, oicq);
@@ -48,7 +46,7 @@ export default class InChatCommandsController {
         messageParts.unshift('0');
       case '/mute':
         if (this.instance.workMode !== 'personal' || !message.senderId?.eq(this.instance.owner)) return false;
-        if (!(pair.qq instanceof Group)) return true;
+        if (!('gid' in pair.qq)) return true;
         await this.service.mute(message, pair, messageParts);
         return true;
       case '/forwardoff':
@@ -92,22 +90,17 @@ export default class InChatCommandsController {
         return true;
       case '/nick':
         if (this.instance.workMode !== 'personal' || !message.senderId?.eq(this.instance.owner)) return false;
-        if (!(pair.qq instanceof Group)) return true;
+        if (!('gid' in pair.qq)) return true;
         if (!params) {
-          await message.reply({
-            message: `群名片：<i>${pair.qq.pickMember(this.instance.qqUin, true).card}</i>`,
-          });
+          // await message.reply({
+          //   message: `群名片：<i>${pair.qq.pickMember(this.instance.qqUin, true).card}</i>`,
+          // });
           return true;
         }
         const result = await pair.qq.setCard(this.instance.qqUin, params);
         await message.reply({
           message: '设置' + (result ? '成功' : '失败'),
         });
-        return true;
-      case '/recover':
-        if (!message.senderId.eq(this.instance.owner)) return true;
-        const helper = new RecoverMessageHelper(this.instance, this.tgBot, this.tgUser, this.oicq, pair, message);
-        helper.startRecover().then(() => this.log.info('恢复完成'));
         return true;
       case '/search':
         await message.reply({

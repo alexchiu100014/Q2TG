@@ -6,19 +6,19 @@ import { Button } from 'telegram/tl/custom/button';
 import setupHelper from '../helpers/setupHelper';
 import commands from '../constants/commands';
 import { WorkMode } from '../types/definitions';
-import OicqClient from '../client/OicqClient';
 import { md5Hex } from '../utils/hashing';
 import Instance from '../models/Instance';
 import env from '../models/env';
+import { QQClient } from '../client/QQClient';
 
 export default class SetupController {
   private readonly setupService: SetupService;
   private readonly log: Logger;
   private isInProgress = false;
-  private waitForFinishCallbacks: Array<(ret: { tgUser: Telegram, oicq: OicqClient }) => unknown> = [];
+  private waitForFinishCallbacks: Array<(ret: { tgUser: Telegram, oicq: QQClient }) => unknown> = [];
   // 创建的 UserBot
   private tgUser: Telegram;
-  private oicq: OicqClient;
+  private oicq: QQClient;
 
   constructor(private readonly instance: Instance,
               private readonly tgBot: Telegram) {
@@ -74,7 +74,8 @@ export default class SetupController {
     // 登录 oicq
     if (this.instance.qq) {
       await this.setupService.informOwner('正在登录已设置好的 QQ');
-      this.oicq = await OicqClient.create({
+      this.oicq = await QQClient.create({
+        type: 'oicq',
         id: this.instance.qq.id,
         uin: Number(this.instance.qq.uin),
         password: this.instance.qq.password,
@@ -172,7 +173,7 @@ export default class SetupController {
   }
 
   public waitForFinish() {
-    return new Promise<{ tgUser: Telegram, oicq: OicqClient }>(resolve => {
+    return new Promise<{ tgUser: Telegram, oicq: QQClient }>(resolve => {
       this.waitForFinishCallbacks.push(resolve);
     });
   }

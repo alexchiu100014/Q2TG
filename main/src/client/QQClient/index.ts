@@ -1,0 +1,191 @@
+import OicqClient, { CreateOicqParams } from '../OicqClient';
+import { Friend, Group } from './entity';
+import {
+  FriendIncreaseEvent,
+  GroupMemberDecreaseEvent,
+  GroupMemberIncreaseEvent,
+  MessageEvent,
+  MessageRecallEvent, PokeEvent,
+} from './events';
+import type { FriendRequestEvent, GroupInviteEvent, ImageElem, MessageElem } from '@icqqjs/icqq';
+
+export * from './events';
+export * from './entity';
+
+export interface CreateQQClientParamsBase {
+  id: number;
+}
+
+export type CreateQQClientParams = CreateOicqParams;
+
+export abstract class QQClient {
+  protected constructor(
+    // 数据库内 ID
+    public readonly id: number,
+  ) {
+  }
+
+  public abstract uin: number;
+  public abstract nickname: string;
+
+  public abstract isOnline(): boolean;
+
+
+  private static existedBots = {} as { [id: number]: Promise<QQClient> };
+
+  public static create(params: CreateQQClientParams) {
+    if (this.existedBots[params.id]) {
+      return this.existedBots[params.id];
+    }
+
+    let client: Promise<QQClient>;
+
+    switch (params.type) {
+      case 'oicq':
+        client = OicqClient.create(params as CreateOicqParams);
+        break;
+      default:
+        throw new Error('Unknown client type');
+    }
+
+    this.existedBots[params.id] = client;
+    return client;
+  }
+
+
+  public abstract getFriendsWithCluster(): Promise<{
+    name: string;
+    friends: Friend[];
+  }[]>;
+
+  public abstract getGroupList(): Promise<Group[]>;
+
+
+  // Handlers
+  protected readonly onMessageHandlers: Array<(e: MessageEvent) => Promise<void | boolean>> = [];
+
+  public addNewMessageEventHandler(handler: (e: MessageEvent) => Promise<void | boolean>) {
+    this.onMessageHandlers.push(handler);
+  }
+
+  public removeNewMessageEventHandler(handler: (e: MessageEvent) => Promise<void | boolean>) {
+    this.onMessageHandlers.includes(handler) &&
+    this.onMessageHandlers.splice(this.onMessageHandlers.indexOf(handler), 1);
+  }
+
+  //
+  protected readonly onGroupMemberIncreaseHandlers: Array<(e: GroupMemberIncreaseEvent) => Promise<void | boolean>> = [];
+
+  public addGroupMemberIncreaseEventHandler(handler: (e: GroupMemberIncreaseEvent) => Promise<void | boolean>) {
+    this.onGroupMemberIncreaseHandlers.push(handler);
+  }
+
+  public removeGroupMemberIncreaseEventHandler(handler: (e: GroupMemberIncreaseEvent) => Promise<void | boolean>) {
+    this.onGroupMemberIncreaseHandlers.includes(handler) &&
+    this.onGroupMemberIncreaseHandlers.splice(this.onGroupMemberIncreaseHandlers.indexOf(handler), 1);
+  }
+
+  //
+  protected readonly onGroupMemberDecreaseHandlers: Array<(e: GroupMemberDecreaseEvent) => Promise<void | boolean>> = [];
+
+  public addGroupMemberDecreaseEventHandler(handler: (e: GroupMemberDecreaseEvent) => Promise<void | boolean>) {
+    this.onGroupMemberDecreaseHandlers.push(handler);
+  }
+
+  public removeGroupMemberDecreaseEventHandler(handler: (e: GroupMemberDecreaseEvent) => Promise<void | boolean>) {
+    this.onGroupMemberDecreaseHandlers.includes(handler) &&
+    this.onGroupMemberDecreaseHandlers.splice(this.onGroupMemberDecreaseHandlers.indexOf(handler), 1);
+  }
+
+  //
+  protected readonly onFriendIncreaseHandlers: Array<(e: FriendIncreaseEvent) => Promise<void | boolean>> = [];
+
+  public addFriendIncreaseEventHandler(handler: (e: FriendIncreaseEvent) => Promise<void | boolean>) {
+    this.onFriendIncreaseHandlers.push(handler);
+  }
+
+  public removeFriendIncreaseEventHandler(handler: (e: FriendIncreaseEvent) => Promise<void | boolean>) {
+    this.onFriendIncreaseHandlers.includes(handler) &&
+    this.onFriendIncreaseHandlers.splice(this.onFriendIncreaseHandlers.indexOf(handler), 1);
+  }
+
+  //
+  protected readonly onMessageRecallHandlers: Array<(e: MessageRecallEvent) => Promise<void | boolean>> = [];
+
+  public addMessageRecallEventHandler(handler: (e: MessageRecallEvent) => Promise<void | boolean>) {
+    this.onMessageRecallHandlers.push(handler);
+  }
+
+  public removeMessageRecallEventHandler(handler: (e: MessageRecallEvent) => Promise<void | boolean>) {
+    this.onMessageRecallHandlers.includes(handler) &&
+    this.onMessageRecallHandlers.splice(this.onMessageRecallHandlers.indexOf(handler), 1);
+  }
+
+  //
+  protected readonly onPokeHandlers: Array<(e: PokeEvent) => Promise<void | boolean>> = [];
+
+  public addPokeEventHandler(handler: (e: PokeEvent) => Promise<void | boolean>) {
+    this.onPokeHandlers.push(handler);
+  }
+
+  public removePokeEventHandler(handler: (e: PokeEvent) => Promise<void | boolean>) {
+    this.onPokeHandlers.includes(handler) &&
+    this.onPokeHandlers.splice(this.onPokeHandlers.indexOf(handler), 1);
+  }
+
+  //
+  protected readonly onFriendRequestHandlers: Array<(e: FriendRequestEvent) => Promise<void | boolean>> = [];
+
+  public addFriendRequestEventHandler(handler: (e: FriendRequestEvent) => Promise<void | boolean>) {
+    this.onFriendRequestHandlers.push(handler);
+  }
+
+  public removeFriendRequestEventHandler(handler: (e: FriendRequestEvent) => Promise<void | boolean>) {
+    this.onFriendRequestHandlers.includes(handler) &&
+    this.onFriendRequestHandlers.splice(this.onFriendRequestHandlers.indexOf(handler), 1);
+  }
+
+  //
+  protected readonly onGroupInviteHandlers: Array<(e: GroupInviteEvent) => Promise<void | boolean>> = [];
+
+  public addGroupInviteEventHandler(handler: (e: GroupInviteEvent) => Promise<void | boolean>) {
+    this.onGroupInviteHandlers.push(handler);
+  }
+
+  public removeGroupInviteEventHandler(handler: (e: GroupInviteEvent) => Promise<void | boolean>) {
+    this.onGroupInviteHandlers.includes(handler) &&
+    this.onGroupInviteHandlers.splice(this.onGroupInviteHandlers.indexOf(handler), 1);
+  }
+
+  // End Handlers
+
+  public getChat(roomId: number): Promise<Group | Friend> {
+    if (roomId > 0) {
+      return this.pickFriend(roomId);
+    }
+    else {
+      return this.pickGroup(-roomId);
+    }
+  }
+
+  public abstract pickFriend(uin: number): Promise<Friend>;
+
+  public abstract pickGroup(groupId: number): Promise<Group>;
+
+  public async createSpoilerImageEndpoint(image: ImageElem, nickname: string, title?: string): Promise<MessageElem[]> {
+    const res: MessageElem[] = [
+      {
+        type: 'text',
+        text: '[Spoiler 图片]',
+      },
+      image,
+    ];
+    if (title) {
+      res.push({
+        type: 'text',
+        text: title,
+      });
+    }
+    return res;
+  }
+}

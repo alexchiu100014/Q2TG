@@ -3,6 +3,7 @@ import Instance from './models/Instance';
 import db from './models/db';
 import api from './api';
 import env from './models/env';
+import './models/posthog';
 
 (async () => {
   configure({

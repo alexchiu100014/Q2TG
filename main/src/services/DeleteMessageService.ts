@@ -2,12 +2,12 @@ import Telegram from '../client/Telegram';
 import { getLogger, Logger } from 'log4js';
 import { Api } from 'telegram';
 import db from '../models/db';
-import { Friend, FriendRecallEvent, Group, GroupRecallEvent } from '@icqqjs/icqq';
 import Instance from '../models/Instance';
 import { Pair } from '../models/Pair';
 import { consumer } from '../utils/highLevelFunces';
 import forwardHelper from '../helpers/forwardHelper';
 import flags from '../constants/flags';
+import { MessageRecallEvent, Group, Friend } from '../client/QQClient';
 
 export default class DeleteMessageService {
   private readonly log: Logger;
@@ -74,7 +74,7 @@ export default class DeleteMessageService {
           // 所以撤回两次
           // 不知道哪次会成功，所以就都不发失败提示了
           this.recallQqMessage(pair.qq, messageInfo.seq, Number(messageInfo.rand),
-            pair.qq instanceof Friend ? messageInfo.time : messageInfo.pktnum,
+            pair.qq.dm ? messageInfo.time : messageInfo.pktnum,
             pair, isOthersMsg, !!mapQq);
           await db.message.delete({
             where: { id: messageInfo.id },
@@ -146,7 +146,7 @@ export default class DeleteMessageService {
     }
   }
 
-  public async handleQqRecall(event: FriendRecallEvent | GroupRecallEvent, pair: Pair) {
+  public async handleQqRecall(event: MessageRecallEvent, pair: Pair) {
     if (this.lock(`qq-${pair.qqRoomId}-${event.seq}`)) return;
     try {
       const message = await db.message.findFirst({

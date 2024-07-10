@@ -1,17 +1,16 @@
 import Telegram from '../client/Telegram';
-import { Friend, FriendInfo, Group, GroupInfo } from '@icqqjs/icqq';
 import { Button } from 'telegram/tl/custom/button';
 import { getLogger, Logger } from 'log4js';
 import { getAvatar } from '../utils/urls';
 import { CustomFile } from 'telegram/client/uploads';
 import db from '../models/db';
 import { Api, utils } from 'telegram';
-import OicqClient from '../client/OicqClient';
 import { md5 } from '../utils/hashing';
 import TelegramChat from '../client/TelegramChat';
 import Instance from '../models/Instance';
 import getAboutText from '../utils/getAboutText';
 import random from '../utils/random';
+import { Friend, Group, QQClient } from '../client/QQClient';
 
 const DEFAULT_FILTER_ID = 114; // 514
 
@@ -22,7 +21,7 @@ export default class ConfigService {
   constructor(private readonly instance: Instance,
               private readonly tgBot: Telegram,
               private readonly tgUser: Telegram,
-              private readonly oicq: OicqClient) {
+              private readonly oicq: QQClient) {
     this.log = getLogger(`ConfigService - ${instance.id}`);
     this.owner = tgBot.getChat(this.instance.owner);
   }
@@ -35,17 +34,17 @@ export default class ConfigService {
 
   // 开始添加转发群组流程
   public async addGroup() {
-    const qGroups = Array.from(this.oicq.gl).map(e => e[1])
-      .filter(it => !this.instance.forwardPairs.find(-it.group_id));
+    const qGroups = (await this.oicq.getGroupList())
+      .filter(it => !this.instance.forwardPairs.find(-it.gid));
     const buttons = qGroups.map(e =>
       this.instance.workMode === 'personal' ?
         [Button.inline(
-          `${e.group_name} (${e.group_id})`,
+          `${e.name} (${e.gid})`,
           this.tgBot.registerCallback(() => this.onSelectChatPersonal(e)),
         )] :
         [Button.url(
-          `${e.group_name} (${e.group_id})`,
-          this.getAssociateLink(-e.group_id),
+          `${e.name} (${e.gid})`,
+          this.getAssociateLink(-e.gid),
         )]);
     await (await this.owner).createPaginatedInlineSelector(
       '选择 QQ 群组' + (this.instance.workMode === 'group' ? '\n然后选择在 TG 中的群组' : ''), buttons);
@@ -53,39 +52,26 @@ export default class ConfigService {
 
   // 只可能是 personal 运行模式
   public async addFriend() {
-    const classes = Array.from(this.oicq.classes);
-    const friends = Array.from(this.oicq.fl).map(e => e[1]);
-    classes.sort((a, b) => {
-      if (a[1] < b[1]) {
-        return -1;
-      }
-      else if (a[1] == b[1]) {
-        return 0;
-      }
-      else {
-        return 1;
-      }
-    });
-    await (await this.owner).createPaginatedInlineSelector('选择分组', classes.map(e => [
-      Button.inline(e[1], this.tgBot.registerCallback(
-        () => this.openFriendSelection(friends.filter(f => f.class_id === e[0]), e[1]),
+    const friends = await this.oicq.getFriendsWithCluster();
+    await (await this.owner).createPaginatedInlineSelector('选择分组', friends.map(e => [
+      Button.inline(e.name, this.tgBot.registerCallback(
+        () => this.openFriendSelection(e.friends, e.name),
       )),
     ]));
   }
 
-  private async openFriendSelection(clazz: FriendInfo[], name: string) {
-    clazz = clazz.filter(them => !this.instance.forwardPairs.find(them.user_id));
+  private async openFriendSelection(clazz: Friend[], name: string) {
+    clazz = clazz.filter(them => !this.instance.forwardPairs.find(them.uid));
     await (await this.owner).createPaginatedInlineSelector(`选择 QQ 好友\n分组：${name}`, clazz.map(e => [
-      Button.inline(`${e.remark || e.nickname} (${e.user_id})`, this.tgBot.registerCallback(
+      Button.inline(`${e.remark || e.nickname} (${e.uid})`, this.tgBot.registerCallback(
         () => this.onSelectChatPersonal(e),
       )),
     ]));
   }
 
-  private async onSelectChatPersonal(info: FriendInfo | GroupInfo) {
-    const roomId = 'user_id' in info ? info.user_id : -info.group_id;
-    const name = 'user_id' in info ? info.remark || info.nickname : info.group_name;
-    const entity = this.oicq.getChat(roomId);
+  private async onSelectChatPersonal(entity: Friend | Group) {
+    const roomId = 'uid' in entity ? entity.uid : -entity.gid;
+    const name = 'uid' in entity ? entity.remark || entity.nickname : entity.name;
     const avatar = await getAvatar(roomId);
     const message = await (await this.owner).sendMessage({
       message: await getAboutText(entity, true),
@@ -102,20 +88,20 @@ export default class ConfigService {
   }
 
   public async addExact(gin: number) {
-    const group = this.oicq.gl.get(gin);
+    const group = await this.oicq.pickGroup(gin);
     let avatar: Buffer;
     try {
-      avatar = await getAvatar(-group.group_id);
+      avatar = await getAvatar(-group.gid);
     }
     catch (e) {
       avatar = null;
-      this.log.error(`加载 ${group.group_name} (${gin}) 的头像失败`, e);
+      this.log.error(`加载 ${group.name} (${gin}) 的头像失败`, e);
     }
-    const message = `${group.group_name}\n${group.group_id}\n${group.member_count} 名成员`;
+    const message = `${group.name}\n${group.gid}`;
     await (await this.owner).sendMessage({
       message,
       file: avatar ? new CustomFile('avatar.png', avatar.length, '', avatar) : undefined,
-      buttons: Button.url('关联 Telegram 群组', this.getAssociateLink(-group.group_id)),
+      buttons: Button.url('关联 Telegram 群组', this.getAssociateLink(-group.gid)),
     });
   }
 
@@ -131,11 +117,11 @@ export default class ConfigService {
   public async createGroupAndLink(room: number | Friend | Group, title?: string, status: boolean | Api.Message = true, chat?: TelegramChat) {
     this.log.info(`创建群组并关联：${room}`);
     if (typeof room === 'number') {
-      room = this.oicq.getChat(room);
+      room = await this.oicq.getChat(room);
     }
     if (!title) {
       // TS 这边不太智能
-      if (room instanceof Friend) {
+      if ('uid' in room) {
         title = room.remark || room.nickname;
       }
       else {
@@ -236,13 +222,13 @@ export default class ConfigService {
   public async promptNewQqChat(chat: Group | Friend) {
     const message = await (await this.owner).sendMessage({
       message: '你' +
-        (chat instanceof Group ? '加入了一个新的群' : '增加了一' + random.pick('位', '个', '只', '头') + '好友') +
+        ('gid' in chat ? '加入了一个新的群' : '增加了一' + random.pick('位', '个', '只', '头') + '好友') +
         '：\n' +
         await getAboutText(chat, true) + '\n' +
         '要创建关联群吗',
       buttons: Button.inline('创建', this.tgBot.registerCallback(async () => {
         await message.delete({ revoke: true });
-        this.createGroupAndLink(chat, chat instanceof Group ? chat.name : chat.remark || chat.nickname);
+        this.createGroupAndLink(chat, 'gid' in chat ? chat.name : chat.remark || chat.nickname);
       })),
     });
     return message;
@@ -251,11 +237,11 @@ export default class ConfigService {
   public async createLinkGroup(qqRoomId: number, tgChatId: number) {
     if (this.instance.workMode === 'group') {
       try {
-        const qGroup = this.oicq.getChat(qqRoomId) as Group;
+        const qGroup = await this.oicq.getChat(qqRoomId) as Group;
         const tgChat = await this.tgBot.getChat(tgChatId);
         const tgUserChat = await this.tgUser.getChat(tgChatId);
         await this.instance.forwardPairs.add(qGroup, tgChat, tgUserChat);
-        await tgChat.sendMessage(`QQ群：${qGroup.name} (<code>${qGroup.group_id}</code>)已与 ` +
+        await tgChat.sendMessage(`QQ群：${qGroup.name} (<code>${qGroup.gid}</code>)已与 ` +
           `Telegram 群 ${(tgChat.entity as Api.Channel).title} (<code>${tgChatId}</code>)关联`);
         if (!(tgChat.entity instanceof Api.Channel)) {
           // TODO 添加一个转换为超级群组的方法链接

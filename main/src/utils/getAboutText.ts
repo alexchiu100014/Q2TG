@@ -1,13 +1,14 @@
-import { Friend, Group } from '@icqqjs/icqq';
+import { Group as OicqGroup } from '@icqqjs/icqq';
+import { Friend, Group } from '../client/QQClient';
 
 export default async function getAboutText(entity: Friend | Group, html: boolean) {
   let text: string;
-  if (entity instanceof Friend) {
+  if ('uid' in entity) {
     text = `<b>备注：</b>${entity.remark}\n` +
       `<b>昵称：</b>${entity.nickname}\n` +
-      `<b>账号：</b>${entity.user_id}`;
+      `<b>账号：</b>${entity.uid}`;
   }
-  else {
+  else if (entity instanceof OicqGroup) {
     const owner = entity.pickMember(entity.info.owner_id);
     await owner.renew();
     const self = entity.pickMember(entity.client.uin);
@@ -20,6 +21,7 @@ export default async function getAboutText(entity: Friend | Group, html: boolean
         `${owner.card || owner.info.nickname} (<code>${owner.user_id}</code>)` : '') +
       ((entity.is_admin || entity.is_owner) ? '\n<b>可管理</b>' : '');
   }
+  // TODO: NapCat Group
 
   if (!html) {
     text = text.replace(/<\/?\w+>/g, '');

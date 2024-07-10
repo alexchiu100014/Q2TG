@@ -1,19 +1,20 @@
 import { Api } from 'telegram';
 import Telegram from '../client/Telegram';
-import OicqClient from '../client/OicqClient';
 import ConfigService from '../services/ConfigService';
 import regExps from '../constants/regExps';
-import {
-  FriendIncreaseEvent,
-  GroupMessageEvent,
-  MemberDecreaseEvent,
-  MemberIncreaseEvent,
-  PrivateMessageEvent,
-} from '@icqqjs/icqq';
 import Instance from '../models/Instance';
 import { getLogger, Logger } from 'log4js';
 import { editFlags } from '../utils/flagControl';
 import flags from '../constants/flags';
+import {
+  Friend,
+  FriendIncreaseEvent,
+  GroupMemberDecreaseEvent,
+  GroupMemberIncreaseEvent,
+  QQClient,
+} from '../client/QQClient';
+import { MessageEvent } from '../client/QQClient';
+import OicqClient from '../client/OicqClient';
 
 export default class ConfigController {
   private readonly configService: ConfigService;
@@ -23,16 +24,16 @@ export default class ConfigController {
   constructor(private readonly instance: Instance,
               private readonly tgBot: Telegram,
               private readonly tgUser: Telegram,
-              private readonly oicq: OicqClient) {
+              private readonly oicq: QQClient) {
     this.log = getLogger(`ConfigController - ${instance.id}`);
     this.configService = new ConfigService(this.instance, tgBot, tgUser, oicq);
     tgBot.addNewMessageEventHandler(this.handleMessage);
     tgBot.addNewServiceMessageEventHandler(this.handleServiceMessage);
     tgBot.addChannelParticipantEventHandler(this.handleChannelParticipant);
     oicq.addNewMessageEventHandler(this.handleQqMessage);
-    oicq.on('notice.group.decrease', this.handleGroupDecrease);
-    this.instance.workMode === 'personal' && oicq.on('notice.group.increase', this.handleMemberIncrease);
-    this.instance.workMode === 'personal' && oicq.on('notice.friend.increase', this.handleFriendIncrease);
+    oicq.addGroupMemberDecreaseEventHandler(this.handleGroupDecrease);
+    this.instance.workMode === 'personal' && oicq.addGroupMemberIncreaseEventHandler(this.handleMemberIncrease);
+    this.instance.workMode === 'personal' && oicq.addFriendIncreaseEventHandler(this.handleFriendIncrease);
     this.instance.workMode === 'personal' && this.configService.setupFilter();
   }
 
@@ -71,7 +72,9 @@ export default class ConfigController {
             await this.configService.migrateAllChats();
             return true;
           case '/login':
-            await this.oicq.login();
+            if (this.oicq instanceof OicqClient) {
+              await this.oicq.oicq.login();
+            }
             return true;
         }
       }
@@ -115,28 +118,29 @@ export default class ConfigController {
     }
   };
 
-  private handleQqMessage = async (message: GroupMessageEvent | PrivateMessageEvent) => {
-    if (message.message_type !== 'private' || this.instance.workMode === 'group') return false;
+  private handleQqMessage = async (message: MessageEvent) => {
+    if (!message.dm || this.instance.workMode === 'group') return false;
     if (this.instance.flags & flags.NO_AUTO_CREATE_PM) return false;
-    const pair = this.instance.forwardPairs.find(message.friend);
+    const chat = message.chat as Friend;
+    const pair = this.instance.forwardPairs.find(chat);
     if (pair) return false;
     // 如果正在创建中，应该阻塞
-    let promise = this.createPrivateMessageGroupBlockList.get(message.from_id);
+    let promise = this.createPrivateMessageGroupBlockList.get(chat.uid);
     if (promise) {
       await promise;
       return false;
     }
     // 有未创建转发群的新私聊消息时自动创建
-    promise = this.configService.createGroupAndLink(message.from_id, message.friend.remark || message.friend.nickname, true);
-    this.createPrivateMessageGroupBlockList.set(message.from_id, promise);
+    promise = this.configService.createGroupAndLink(chat.uid, chat.remark || chat.nickname, true);
+    this.createPrivateMessageGroupBlockList.set(chat.uid, promise);
     await promise;
     return false;
   };
 
-  private handleMemberIncrease = async (event: MemberIncreaseEvent) => {
-    if (event.user_id !== this.oicq.uin || this.instance.forwardPairs.find(event.group)) return;
+  private handleMemberIncrease = async (event: GroupMemberIncreaseEvent) => {
+    if (event.userId !== this.oicq.uin || this.instance.forwardPairs.find(event.chat)) return;
     // 是新群并且是自己加入了
-    await this.configService.promptNewQqChat(event.group);
+    await this.configService.promptNewQqChat(event.chat);
   };
 
   private handleFriendIncrease = async (event: FriendIncreaseEvent) => {
@@ -157,11 +161,11 @@ export default class ConfigController {
     }
   };
 
-  private handleGroupDecrease = async (event: MemberDecreaseEvent) => {
+  private handleGroupDecrease = async (event: GroupMemberDecreaseEvent) => {
     // 如果是自己被踢出群，则删除对应的配置
     // 如果是群主解散群，则删除对应的配置
-    if (event.user_id !== this.oicq.uin) return;
-    const pair = this.instance.forwardPairs.find(event.group);
+    if (event.userId !== this.oicq.uin) return;
+    const pair = this.instance.forwardPairs.find(event.chat);
     if (!pair) return;
     await this.instance.forwardPairs.remove(pair);
     this.log.info(`已删除关联 ID: ${pair.dbId}`);

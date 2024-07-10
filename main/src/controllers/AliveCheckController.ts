@@ -1,13 +1,14 @@
 import Instance from '../models/Instance';
 import Telegram from '../client/Telegram';
-import OicqClient from '../client/OicqClient';
 import { Api } from 'telegram';
+import { QQClient } from '../client/QQClient';
+import OicqClient from '../client/OicqClient';
 
 export default class AliveCheckController {
   constructor(private readonly instance: Instance,
               private readonly tgBot: Telegram,
               private readonly tgUser: Telegram,
-              private readonly oicq: OicqClient) {
+              private readonly oicq: QQClient) {
     tgBot.addNewMessageEventHandler(this.handleMessage);
   }
 
@@ -35,17 +36,17 @@ export default class AliveCheckController {
       const tgBot = instance.tgBot;
       const tgUser = instance.tgUser;
 
-      const sign = await oicq.getSign('MessageSvc.PbSendMsg', 233, Buffer.alloc(10));
+      const sign = oicq instanceof OicqClient ? await oicq.oicq.getSign('MessageSvc.PbSendMsg', 233, Buffer.alloc(10)) : null;
 
       const tgUserName = (tgUser.me.username || tgUser.me.usernames.length) ?
         '@' + (tgUser.me.username || tgUser.me.usernames[0].username) : tgUser.me.firstName;
       messageParts.push([
         `Instance #${instance.id}`,
 
-        `QQ <code>${instance.qqUin}</code>\t` +
+        `QQ <code>${instance.qqUin}</code> (${oicq.constructor.name})\t` +
         `${boolToStr(oicq.isOnline())}`,
 
-        `签名服务器\t${boolToStr(sign.length > 0)}`,
+        ...(oicq instanceof OicqClient ? [`签名服务器\t${boolToStr(sign.length > 0)}`] : []),
 
         `TG @${tgBot.me.username}\t${boolToStr(tgBot.isOnline)}`,
 

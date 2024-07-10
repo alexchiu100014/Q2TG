@@ -1,5 +1,5 @@
 import { getLogger } from 'log4js';
-import { Friend, Group } from '@icqqjs/icqq';
+import { Friend, Group } from '../client/QQClient';
 import TelegramChat from '../client/TelegramChat';
 import getAboutText from '../utils/getAboutText';
 import { md5 } from '../utils/hashing';
@@ -53,7 +53,7 @@ export class Pair {
   }
 
   get qqRoomId() {
-    return this.qq instanceof Friend ? this.qq.user_id : -this.qq.group_id;
+    return 'uid' in this.qq ? this.qq.uid : -this.qq.gid;
   }
 
   get tgId() {

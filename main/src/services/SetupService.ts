@@ -3,13 +3,12 @@ import { getLogger, Logger } from 'log4js';
 import { BigInteger } from 'big-integer';
 import { Platform } from '@icqqjs/icqq';
 import { MarkupLike } from 'telegram/define';
-import OicqClient from '../client/OicqClient';
 import { Button } from 'telegram/tl/custom/button';
-import { CustomFile } from 'telegram/client/uploads';
 import { WorkMode } from '../types/definitions';
 import TelegramChat from '../client/TelegramChat';
 import Instance from '../models/Instance';
 import db from '../models/db';
+import { QQClient } from '../client/QQClient';
 
 export default class SetupService {
   private owner: TelegramChat;
@@ -85,7 +84,8 @@ export default class SetupService {
 
   public async createOicq(uin: number, password: string, platform: Platform, signApi: string, signVer: string) {
     const dbQQBot = await db.qqBot.create({ data: { uin, password, platform, signApi, signVer } });
-    return await OicqClient.create({
+    return await QQClient.create({
+      type: 'oicq',
       id: dbQQBot.id,
       uin, password, platform, signApi, signVer,
       onVerifyDevice: async (phone) => {

@@ -6,7 +6,6 @@ import ForwardController from '../controllers/ForwardController';
 import DeleteMessageController from '../controllers/DeleteMessageController';
 import FileAndFlashPhotoController from '../controllers/FileAndFlashPhotoController';
 import Telegram from '../client/Telegram';
-import OicqClient from '../client/OicqClient';
 import { getLogger, Logger } from 'log4js';
 import ForwardPairs from './ForwardPairs';
 import InstanceManageController from '../controllers/InstanceManageController';
@@ -18,14 +17,13 @@ import RequestController from '../controllers/RequestController';
 import OicqErrorNotifyController from '../controllers/OicqErrorNotifyController';
 import { MarkupLike } from 'telegram/define';
 import { Button } from 'telegram/tl/custom/button';
-import { CustomFile } from 'telegram/client/uploads';
 import { QqBot } from '@prisma/client';
-import StatusReportController from '../controllers/StatusReportController';
 import HugController from '../controllers/HugController';
 import QuotLyController from '../controllers/QuotLyController';
 import MiraiSkipFilterController from '../controllers/MiraiSkipFilterController';
 import env from './env';
 import AliveCheckController from '../controllers/AliveCheckController';
+import { QQClient } from '../client/QQClient';
 
 export default class Instance {
   public static readonly instances: Instance[] = [];
@@ -43,7 +41,7 @@ export default class Instance {
 
   public tgBot: Telegram;
   public tgUser: Telegram;
-  public oicq: OicqClient;
+  public oicq: QQClient;
 
   private _ownerChat: TelegramChat;
 
@@ -57,7 +55,6 @@ export default class Instance {
   private inChatCommandsController: InChatCommandsController;
   private forwardController: ForwardController;
   private fileAndFlashPhotoController: FileAndFlashPhotoController;
-  private statusReportController: StatusReportController;
   private hugController: HugController;
   private quotLyController: QuotLyController;
   private miraiSkipFilterController: MiraiSkipFilterController;
@@ -125,7 +122,8 @@ export default class Instance {
         this.log.info('TG UserBot 登录完成');
         this._ownerChat = await this.tgBot.getChat(this.owner);
         this.log.debug('正在登录 OICQ');
-        this.oicq = await OicqClient.create({
+        this.oicq = await QQClient.create({
+          type: 'oicq',
           id: this.qq.id,
           uin: Number(this.qq.uin),
           password: this.qq.password,
@@ -144,7 +142,6 @@ export default class Instance {
         });
         this.log.info('OICQ 登录完成');
       }
-      this.statusReportController = new StatusReportController(this, this.tgBot, this.tgUser, this.oicq);
       this.forwardPairs = await ForwardPairs.load(this.id, this.oicq, this.tgBot, this.tgUser);
       this.setupCommands()
         .then(() => this.log.info('命令设置成功'))

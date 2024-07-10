@@ -1,35 +1,33 @@
 import Instance from '../models/Instance';
 import Telegram from '../client/Telegram';
-import OicqClient from '../client/OicqClient';
 import { getLogger, Logger } from 'log4js';
-import { Group, GroupMessageEvent, PrivateMessageEvent } from '@icqqjs/icqq';
 import { Api } from 'telegram';
 import quotly from 'quote-api/methods/generate.js';
 import { CustomFile } from 'telegram/client/uploads';
 import db from '../models/db';
-import { Message } from '@prisma/client';
 import BigInteger from 'big-integer';
 import { getAvatarUrl } from '../utils/urls';
 import convert from '../helpers/convert';
 import { Pair } from '../models/Pair';
 import env from '../models/env';
 import flags from '../constants/flags';
+import { MessageEvent, QQClient, Group } from '../client/QQClient';
 
 export default class {
   private readonly log: Logger;
 
   constructor(private readonly instance: Instance,
               private readonly tgBot: Telegram,
-              private readonly oicq: OicqClient) {
+              private readonly oicq: QQClient) {
     this.log = getLogger(`QuotLyController - ${instance.id}`);
     oicq.addNewMessageEventHandler(this.onQqMessage);
     tgBot.addNewMessageEventHandler(this.onTelegramMessage);
   }
 
-  private onQqMessage = async (event: PrivateMessageEvent | GroupMessageEvent) => {
+  private onQqMessage = async (event: MessageEvent) => {
     if (this.instance.workMode === 'personal') return;
-    if (event.message_type !== 'group') return;
-    const pair = this.instance.forwardPairs.find(event.group);
+    if (event.dm) return;
+    const pair = this.instance.forwardPairs.find(event.chat);
     if (!pair) return;
     const chain = [...event.message];
     while (chain.length && chain[0].type !== 'text') {
@@ -38,7 +36,7 @@ export default class {
     const firstElem = chain[0];
     if (firstElem?.type !== 'text') return;
     if (firstElem.text.trim() !== '/q') return;
-    if (!event.source) {
+    if (!event.replyTo) {
       await event.reply('请回复一条消息', true);
       return true;
     }
@@ -46,8 +44,8 @@ export default class {
       where: {
         instanceId: this.instance.id,
         qqRoomId: pair.qqRoomId,
-        qqSenderId: event.source.user_id,
-        seq: event.source.seq,
+        qqSenderId: event.replyTo.fromId,
+        seq: event.replyTo.seq,
         // rand: event.source.rand,
       },
     });
@@ -106,9 +104,9 @@ export default class {
   };
 
   private async pinMessageOnBothSide(pair: Pair, sourceMessage: Awaited<ReturnType<typeof db.message.findFirst>>) {
-    if (pair.qq instanceof Group) {
+    if ('gid' in pair.qq) {
       try {
-        await pair.qq.addEssence(sourceMessage.seq, Number(sourceMessage.rand));
+        // await pair.qq.addEssence(sourceMessage.seq, Number(sourceMessage.rand));
       }
       catch (e) {
         this.log.warn('无法添加精华消息，群：', pair.qqRoomId, e);
@@ -123,7 +121,7 @@ export default class {
     }
   }
 
-  private async genQuote(message: Message) {
+  private async genQuote(message: Awaited<ReturnType<typeof db.message.findFirst>>) {
     const GROUP_ANONYMOUS_BOT = 1087968824n;
 
     const backgroundColor = '#292232';
@@ -310,7 +308,7 @@ export default class {
     return Buffer.from(res.image, 'base64');
   }
 
-  private async sendQuote(pair: Pair, message: Message) {
+  private async sendQuote(pair: Pair, message: Awaited<ReturnType<typeof db.message.findFirst>>) {
     const image = await this.genQuote(message);
 
     const tgMessage = await pair.tg.sendMessage({

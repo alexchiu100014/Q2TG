@@ -1,12 +1,11 @@
 import Telegram from '../client/Telegram';
-import OicqClient from '../client/OicqClient';
 import { Api } from 'telegram';
 import db from '../models/db';
-import { Button } from 'telegram/tl/custom/button';
 import { getLogger, Logger } from 'log4js';
 import { CustomFile } from 'telegram/client/uploads';
 import { fetchFile, getImageUrlByMd5 } from '../utils/urls';
 import Instance from '../models/Instance';
+import { QQClient } from '../client/QQClient';
 
 const REGEX = /^\/start (file|flash)-(\d+)$/;
 
@@ -15,7 +14,7 @@ export default class FileAndFlashPhotoController {
 
   constructor(private readonly instance: Instance,
               private readonly tgBot: Telegram,
-              private readonly oicq: OicqClient) {
+              private readonly oicq: QQClient) {
     tgBot.addNewMessageEventHandler(this.onTelegramMessage);
     this.log = getLogger(`FileAndFlashPhotoController - ${instance.id}`);
   }
@@ -40,7 +39,7 @@ export default class FileAndFlashPhotoController {
       const fileInfo = await db.file.findFirst({
         where: { id },
       });
-      const downloadUrl = await this.oicq.getChat(Number(fileInfo.roomId)).getFileUrl(fileInfo.fileId);
+      const downloadUrl = await (await this.oicq.getChat(Number(fileInfo.roomId))).getFileUrl(fileInfo.fileId);
       await message.reply({
         message: fileInfo.info + `\n<a href="${downloadUrl}">下载</a>`,
       });

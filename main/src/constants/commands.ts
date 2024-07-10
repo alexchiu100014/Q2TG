@@ -81,10 +81,6 @@ const groupInChatCommands = [
   new Api.BotCommand({ command: 'enable_qq_forward', description: '恢复从QQ转发至TG' }),
   new Api.BotCommand({ command: 'disable_tg_forward', description: '停止从TG转发至QQ' }),
   new Api.BotCommand({ command: 'enable_tg_forward', description: '恢复从TG转发至QQ' }),
-  new Api.BotCommand({
-    command: 'recover',
-    description: '恢复离线期间的 QQ 消息记录到 TG（不稳定功能，管理员专用）',
-  }),
 ];
 
 const personalInChatCommands = [

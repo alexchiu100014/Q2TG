@@ -1,6 +1,5 @@
-import { Friend, Group } from '@icqqjs/icqq';
+import { Friend, Group, QQClient } from '../client/QQClient';
 import TelegramChat from '../client/TelegramChat';
-import OicqClient from '../client/OicqClient';
 import Telegram from '../client/Telegram';
 import db from './db';
 import { Entity } from 'telegram/define';
@@ -18,13 +17,13 @@ export default class ForwardPairs {
   }
 
   // 在 forwardController 创建时初始化
-  private async init(oicq: OicqClient, tgBot: Telegram, tgUser: Telegram) {
+  private async init(oicq: QQClient, tgBot: Telegram, tgUser: Telegram) {
     const dbValues = await db.forwardPair.findMany({
       where: { instanceId: this.instanceId },
     });
     for (const i of dbValues) {
       try {
-        const qq = oicq.getChat(Number(i.qqRoomId));
+        const qq = await oicq.getChat(Number(i.qqRoomId));
         const tg = await tgBot.getChat(Number(i.tgChatId));
         const tgUserChat = await tgUser.getChat(Number(i.tgChatId));
         if (qq && tg && tgUserChat) {
@@ -37,7 +36,7 @@ export default class ForwardPairs {
     }
   }
 
-  public static async load(instanceId: number, oicq: OicqClient, tgBot: Telegram, tgUser: Telegram) {
+  public static async load(instanceId: number, oicq: QQClient, tgBot: Telegram, tgUser: Telegram) {
     const instance = new this(instanceId);
     await instance.init(oicq, tgBot, tgUser);
     return instance;
@@ -46,7 +45,7 @@ export default class ForwardPairs {
   public async add(qq: Friend | Group, tg: TelegramChat, tgUser: TelegramChat) {
     const dbEntry = await db.forwardPair.create({
       data: {
-        qqRoomId: qq instanceof Friend ? qq.user_id : -qq.group_id,
+        qqRoomId: 'uid' in qq ? qq.uid : -qq.gid,
         tgChatId: Number(tg.id),
         instanceId: this.instanceId,
       },
@@ -64,11 +63,11 @@ export default class ForwardPairs {
 
   public find(target: Friend | Group | TelegramChat | Entity | number | BigInteger) {
     if (!target) return null;
-    if (target instanceof Friend) {
-      return this.pairs.find(e => e.qq instanceof Friend && e.qq.user_id === target.user_id);
+    if (typeof target === 'object' && 'uid' in target) {
+      return this.pairs.find(e => 'uid' in e.qq && e.qq.uid === target.uid);
     }
-    else if (target instanceof Group) {
-      return this.pairs.find(e => e.qq instanceof Group && e.qq.group_id === target.group_id);
+    else if (typeof target === 'object' && 'gid' in target) {
+      return this.pairs.find(e => 'gid' in e.qq && e.qq.gid === target.gid);
     }
     else if (typeof target === 'number' || 'eq' in target) {
       return this.pairs.find(e => e.qqRoomId === target || e.tg.id.eq(target));
@@ -84,7 +83,7 @@ export default class ForwardPairs {
         const instanceTgUserId = instance.userMe.id.toString();
         if (forwardPair.instanceMapForTg[instanceTgUserId]) continue;
         try {
-          const group = instance.oicq.getChat(forwardPair.qqRoomId) as Group;
+          const group = await instance.oicq.getChat(forwardPair.qqRoomId) as Group;
           if (!group) continue;
           forwardPair.instanceMapForTg[instanceTgUserId] = group;
           this.log.info('MapInstance', { group: forwardPair.qqRoomId, tg: instanceTgUserId, qq: instance.qqUin });

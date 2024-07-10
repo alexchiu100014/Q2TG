@@ -1,17 +1,17 @@
 import { getLogger, Logger } from 'log4js';
 import Instance from '../models/Instance';
 import Telegram from '../client/Telegram';
-import OicqClient from '../client/OicqClient';
 import { Api } from 'telegram';
 import getAboutText from '../utils/getAboutText';
 import { Pair } from '../models/Pair';
 import { CustomFile } from 'telegram/client/uploads';
 import { getAvatar } from '../utils/urls';
 import db from '../models/db';
-import { Friend, Group } from '@icqqjs/icqq';
 import { format } from 'date-and-time';
 import ZincSearch from 'zincsearch-node';
 import env from '../models/env';
+import { QQClient, Group, GroupMemberInfo } from '../client/QQClient';
+import { Member as OicqMember } from '@icqqjs/icqq';
 
 export default class InChatCommandsService {
   private readonly log: Logger;
@@ -19,7 +19,7 @@ export default class InChatCommandsService {
 
   constructor(private readonly instance: Instance,
               private readonly tgBot: Telegram,
-              private readonly oicq: OicqClient) {
+              private readonly oicq: QQClient) {
     this.log = getLogger(`InChatCommandsService - ${instance.id}`);
     if (env.ZINC_URL) {
       this.zincSearch = new ZincSearch({
@@ -41,9 +41,9 @@ export default class InChatCommandsService {
       });
       if (messageInfo) {
         let textToSend = '';
-        if (pair.qq instanceof Friend) {
+        if ('uid' in pair.qq) {
           if (Number(messageInfo.qqSenderId) === pair.qqRoomId) {
-            textToSend += `<b>发送者：</b>${pair.qq.remark || pair.qq.nickname}(<code>${pair.qq.user_id}</code>)\n`;
+            textToSend += `<b>发送者：</b>${pair.qq.remark || pair.qq.nickname}(<code>${pair.qq.uid}</code>)\n`;
           }
           else {
             textToSend += `<b>发送者：</b>${this.oicq.nickname}(<code>${this.oicq.uin}</code>)\n`;
@@ -51,11 +51,15 @@ export default class InChatCommandsService {
         }
         else {
           const sender = pair.qq.pickMember(Number(messageInfo.qqSenderId));
-          await sender.renew();
-          textToSend += `<b>发送者：</b>${sender.title ? `「<i>${sender.title}</i>」` : ''}` +
-            `${sender.card || sender.info.nickname}(<code>${sender.user_id}</code>)\n`;
-          if (sender.info.role !== 'member') {
-            textToSend += `<b>职务：</b>${sender.info.role === 'owner' ? '群主' : '管理员'}\n`;
+          let memberInfo: GroupMemberInfo;
+          if (sender instanceof OicqMember) {
+            memberInfo = await sender.renew();
+          }
+
+          textToSend += `<b>发送者：</b>${memberInfo.title ? `「<i>${memberInfo.title}</i>」` : ''}` +
+            `${memberInfo.card || memberInfo.nickname}(<code>${sender.uid}</code>)\n`;
+          if (memberInfo.role !== 'member') {
+            textToSend += `<b>职务：</b>${memberInfo.role === 'owner' ? '群主' : '管理员'}\n`;
           }
         }
         textToSend += `<b>发送时间：</b>${format(new Date(messageInfo.time * 1000), 'YYYY-M-D hh:mm:ss')}`;
@@ -108,12 +112,12 @@ export default class InChatCommandsService {
           target = Number(dbEntry.qqSenderId);
         }
       }
-      if (pair.qq instanceof Group && !target) {
+      if ('gid' in pair.qq && !target) {
         await message.reply({
           message: '<i>请回复一条消息</i>',
         });
       }
-      else if (pair.qq instanceof Group) {
+      else if ('gid' in pair.qq) {
         await pair.qq.pokeMember(target);
       }
       else {
@@ -151,7 +155,7 @@ export default class InChatCommandsService {
   public async mute(message: Api.Message, pair: Pair, args: string[]) {
     try {
       const group = pair.qq as Group;
-      if(!(group.is_admin||group.is_owner)){
+      if (!(group.is_admin || group.is_owner)) {
         await message.reply({
           message: '<i>无管理员权限</i>',
         });

@@ -2,8 +2,9 @@ import { FastifyPluginCallback } from 'fastify';
 import { Pair } from '../models/Pair';
 import ejs from 'ejs';
 import fs from 'fs';
-import { Group } from '@icqqjs/icqq';
+import { Group as OicqGroup, Member as OicqMember } from '@icqqjs/icqq';
 import { format } from 'date-and-time';
+import { Group, GroupMemberInfo } from '../client/QQClient';
 
 const template = ejs.compile(fs.readFileSync('./assets/richHeader.ejs', 'utf-8'));
 
@@ -17,25 +18,31 @@ export default ((fastify, opts, done) => {
       return 'Group not found';
     }
     const group = pair.qq as Group;
-    const members = await group.getMemberMap();
-    const member = members.get(Number(request.params.userId));
+    const member = group.pickMember(Number(request.params.userId), true);
     if (!member) {
       reply.code(404);
       return 'Member not found';
     }
-    const profile = await pair.qq.client.getProfile(member.user_id);
+    const profile = group instanceof OicqGroup ? await group.client.getProfile(member.uid) : ({} as any); // TODO
+    let memberInfo: GroupMemberInfo;
+    if (member instanceof OicqMember) {
+      memberInfo = member.info;
+    }
+    if (!memberInfo) {
+      memberInfo = {} as any;
+    }
 
     reply.type('text/html');
     return template({
       userId: request.params.userId,
-      title: member.title,
-      name: member.card || member.nickname,
-      role: member.role,
-      joinTime: format(new Date(member.join_time * 1000), 'YYYY-MM-DD HH:mm'),
-      lastSentTime: format(new Date(member.last_sent_time * 1000), 'YYYY-MM-DD HH:mm'),
+      title: memberInfo.title,
+      name: memberInfo.card || memberInfo.nickname,
+      role: memberInfo.role,
+      joinTime: format(new Date(memberInfo.join_time * 1000), 'YYYY-MM-DD HH:mm'),
+      lastSentTime: format(new Date(memberInfo.last_sent_time * 1000), 'YYYY-MM-DD HH:mm'),
       regTime: format(new Date(profile.regTimestamp * 1000), 'YYYY-MM-DD HH:mm'),
       location: [profile.country, profile.province, profile.city].join(' ').trim(),
-      nickname: member.nickname,
+      nickname: memberInfo.nickname,
       email: profile.email,
       qid: profile.QID,
       signature: profile.signature,

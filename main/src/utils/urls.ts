@@ -1,13 +1,13 @@
 import axios from 'axios';
-import { Friend, Group } from '@icqqjs/icqq';
+import { Friend, Group } from '../client/QQClient';
 
 export function getAvatarUrl(room: number | bigint | Friend | Group): string {
   if (!room) return '';
-  if (room instanceof Friend) {
-    room = room.user_id;
+  if (typeof room === 'object' && 'uid' in room) {
+    room = room.uid;
   }
-  if (room instanceof Group) {
-    room = -room.group_id;
+  if (typeof room === 'object' && 'gid' in room) {
+    room = -room.gid;
   }
   return room < 0 ?
     `https://p.qlogo.cn/gh/${-room}/${-room}/0` :
@@ -34,5 +34,5 @@ export function getAvatar(room: number | Friend | Group) {
 }
 
 export function isContainsUrl(msg: string): boolean {
-  return msg.includes("https://") || msg.includes("http://")
+  return msg.includes('https://') || msg.includes('http://');
 }

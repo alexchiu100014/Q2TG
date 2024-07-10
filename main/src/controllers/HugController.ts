@@ -1,7 +1,6 @@
 import Instance from '../models/Instance';
 import Telegram from '../client/Telegram';
-import OicqClient from '../client/OicqClient';
-import { AtElem, Group, GroupMessageEvent, PrivateMessageEvent, Sendable } from '@icqqjs/icqq';
+import { AtElem, Sendable } from '@icqqjs/icqq';
 import { Pair } from '../models/Pair';
 import { Api } from 'telegram';
 import db from '../models/db';
@@ -9,6 +8,8 @@ import BigInteger from 'big-integer';
 import helper from '../helpers/forwardHelper';
 import { getLogger, Logger } from 'log4js';
 import flags from '../constants/flags';
+import { MessageEvent, QQClient, Group, GroupMemberInfo } from '../client/QQClient';
+import { Member as OicqMember } from '@icqqjs/icqq/lib/member';
 
 type ActionSubjectTg = {
   name: string;
@@ -31,15 +32,15 @@ export default class {
 
   constructor(private readonly instance: Instance,
               private readonly tgBot: Telegram,
-              private readonly oicq: OicqClient) {
+              private readonly oicq: QQClient) {
     this.log = getLogger(`HugController - ${instance.id}`);
     oicq.addNewMessageEventHandler(this.onQqMessage);
     tgBot.addNewMessageEventHandler(this.onTelegramMessage);
   }
 
-  private onQqMessage = async (event: PrivateMessageEvent | GroupMessageEvent) => {
-    if (event.message_type !== 'group') return;
-    const pair = this.instance.forwardPairs.find(event.group);
+  private onQqMessage = async (event: MessageEvent) => {
+    if (event.dm) return;
+    const pair = this.instance.forwardPairs.find(event.chat);
     if (!pair) return;
     if ((pair.flags | this.instance.flags) & flags.DISABLE_SLASH_COMMAND) return;
     const chain = [...event.message];
@@ -55,8 +56,8 @@ export default class {
     if (!action) return;
     const from: ActionSubject = {
       from: 'qq',
-      name: event.nickname,
-      id: event.sender.user_id,
+      name: event.from.name,
+      id: event.from.id,
     };
     let to: ActionSubject;
     const ats = chain.filter(it => it.type === 'at') as AtElem[];
@@ -68,14 +69,14 @@ export default class {
         id: ats[0].qq as number,
       };
     }
-    else if (event.source && event.source.user_id === this.oicq.uin) {
+    else if (event.replyTo && event.replyTo.fromId === this.oicq.uin) {
       // 来自 tg
       const sourceMessage = await db.message.findFirst({
         where: {
           instanceId: this.instance.id,
           qqRoomId: pair.qqRoomId,
-          qqSenderId: event.source.user_id,
-          seq: event.source.seq,
+          qqSenderId: event.replyTo.fromId,
+          seq: event.replyTo.seq,
           // rand: event.source.rand,
         },
       });
@@ -89,19 +90,23 @@ export default class {
         name: sourceMessage.nick,
       };
     }
-    else if (event.source) {
-      const sourceMember = (pair.qq as Group).pickMember(event.source.user_id);
+    else if (event.replyTo) {
+      const sourceMember = (pair.qq as Group).pickMember(event.replyTo.fromId);
+      let memberInfo: GroupMemberInfo;
+      if (sourceMember instanceof OicqMember) {
+        memberInfo = sourceMember.info;
+      }
       to = {
         from: 'qq',
-        name: sourceMember.card || (await sourceMember.getSimpleInfo()).nickname,
-        id: event.source.user_id,
+        name: memberInfo.card || memberInfo.nickname,
+        id: event.replyTo.fromId,
       };
     }
     else {
       to = {
         from: 'qq',
         name: '自己',
-        id: event.sender.user_id,
+        id: event.from.id,
       };
     }
     await this.sendAction(pair, from, to, action, exec[5]);
