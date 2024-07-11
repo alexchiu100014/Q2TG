@@ -44,8 +44,12 @@ model Instance {
   userSessionId Int?
   qqBotId       Int?
   qqBot         QqBot?        @relation(fields: [qqBotId], references: [id], onDelete: Cascade)
-  reportUrl     String?
   flags         Int           @default(0)
+}
+
+enum QqBotType {
+  oicq
+  napcat
 }
 
 model QqBot {
@@ -57,6 +61,8 @@ model QqBot {
   signApi      String?
   signVer      String?
   signDockerId String?
+  type         QqBotType  @default(oicq)
+  wsUrl        String?
 }
 
 model Message {
