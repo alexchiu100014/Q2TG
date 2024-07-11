@@ -44,7 +44,7 @@ export default class AliveCheckController {
         `Instance #${instance.id}`,
 
         `QQ <code>${instance.qqUin}</code> (${oicq.constructor.name})\t` +
-        `${boolToStr(oicq.isOnline())}`,
+        `${boolToStr(await oicq.isOnline())}`,
 
         ...(oicq instanceof OicqClient ? [`签名服务器\t${boolToStr(sign.length > 0)}`] : []),
 

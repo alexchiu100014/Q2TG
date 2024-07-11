@@ -2,6 +2,7 @@ import Telegram from '../client/Telegram';
 import {
   FaceElem,
   Group as OicqGroup,
+  Friend as OicqFriend,
   MessageElem, PttElem,
   Quotable,
   segment,
@@ -685,13 +686,14 @@ export default class ForwardService {
           `大小：${file.size}`);
         if (file.size.leq(50 * 1024 * 1024)) {
           chain.push('\n');
-          useText('文件正在上传中…');
           if ('gid' in pair.qq) {
+            useText('文件正在上传中…');
             pair.qq.fs.upload(await message.downloadMedia({}), '/',
               fileNameAttribute ? fileNameAttribute.fileName : 'file')
               .catch(err => pair.qq.sendMsg(`上传失败：\n${err.message}`));
           }
-          else {
+          else if (pair.qq instanceof OicqFriend) {
+            useText('文件正在上传中…');
             pair.qq.sendFile(await message.downloadMedia({}),
               fileNameAttribute ? fileNameAttribute.fileName : 'file')
               .catch(err => pair.qq.sendMsg(`上传失败：\n${err.message}`));

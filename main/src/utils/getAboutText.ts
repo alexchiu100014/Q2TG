@@ -9,16 +9,14 @@ export default async function getAboutText(entity: Friend | Group, html: boolean
       `<b>账号：</b>${entity.uid}`;
   }
   else if (entity instanceof OicqGroup) {
-    const owner = entity.pickMember(entity.info.owner_id);
-    await owner.renew();
-    const self = entity.pickMember(entity.client.uin);
-    await self.renew();
+    const owner = await entity.pickMember(entity.info.owner_id).renew();
+    const self = await entity.pickMember(entity.client.uin).renew();
     text = `<b>群名称：</b>${entity.name}\n` +
       `<b>${entity.info.member_count} 名成员</b>\n` +
       `<b>群号：</b><code>${entity.group_id}</code>\n` +
       (self ? `<b>我的群名片：</b>${self.title ? `「<i>${self.title}</i>」` : ''}${self.card}\n` : '') +
       (owner ? `<b>群主：</b>${owner.title ? `「<i>${owner.title}</i>」` : ''}` +
-        `${owner.card || owner.info.nickname} (<code>${owner.user_id}</code>)` : '') +
+        `${owner.card || owner.nickname} (<code>${entity.info.owner_id}</code>)` : '') +
       ((entity.is_admin || entity.is_owner) ? '\n<b>可管理</b>' : '');
   }
   // TODO: NapCat Group

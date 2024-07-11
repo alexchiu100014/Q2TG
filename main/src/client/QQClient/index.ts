@@ -8,6 +8,7 @@ import {
   MessageRecallEvent, PokeEvent,
 } from './events';
 import type { FriendRequestEvent, GroupInviteEvent, ImageElem, MessageElem } from '@icqqjs/icqq';
+import { CreateNapCatParams, NapCatClient } from '../NapCatClient';
 
 export * from './events';
 export * from './entity';
@@ -16,7 +17,7 @@ export interface CreateQQClientParamsBase {
   id: number;
 }
 
-export type CreateQQClientParams = CreateOicqParams;
+export type CreateQQClientParams = CreateOicqParams | CreateNapCatParams;
 
 export abstract class QQClient {
   protected constructor(
@@ -28,7 +29,7 @@ export abstract class QQClient {
   public abstract uin: number;
   public abstract nickname: string;
 
-  public abstract isOnline(): boolean;
+  public abstract isOnline(): Promise<boolean>;
 
 
   private static existedBots = {} as { [id: number]: Promise<QQClient> };
@@ -42,7 +43,10 @@ export abstract class QQClient {
 
     switch (params.type) {
       case 'oicq':
-        client = OicqClient.create(params as CreateOicqParams);
+        client = OicqClient.create(params);
+        break;
+      case 'napcat':
+        client = NapCatClient.create(params);
         break;
       default:
         throw new Error('Unknown client type');

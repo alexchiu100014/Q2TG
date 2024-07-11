@@ -11,7 +11,7 @@ import { format } from 'date-and-time';
 import ZincSearch from 'zincsearch-node';
 import env from '../models/env';
 import { QQClient, Group, GroupMemberInfo } from '../client/QQClient';
-import { Member as OicqMember } from '@icqqjs/icqq';
+import { Member as OicqMember, Group as OicqGroup, Friend as OicqFriend } from '@icqqjs/icqq';
 import posthog from '../models/posthog';
 
 export default class InChatCommandsService {
@@ -100,6 +100,13 @@ export default class InChatCommandsService {
   }
 
   public async poke(message: Api.Message, pair: Pair) {
+    if (!('pokeMember' in pair.qq) && !('poke' in pair.qq)) {
+      await message.reply({
+        message: '<i>此功能不支持</i>',
+      });
+      return;
+    }
+    const qq = pair.qq as OicqFriend | OicqGroup;
     try {
       let target: number;
       if (message.replyToMsgId) {
@@ -113,16 +120,16 @@ export default class InChatCommandsService {
           target = Number(dbEntry.qqSenderId);
         }
       }
-      if ('gid' in pair.qq && !target) {
+      if (qq instanceof OicqGroup && !target) {
         await message.reply({
           message: '<i>请回复一条消息</i>',
         });
       }
-      else if ('gid' in pair.qq) {
-        await pair.qq.pokeMember(target);
+      else if (qq instanceof OicqGroup) {
+        await qq.pokeMember(target);
       }
       else {
-        await pair.qq.poke(target && target !== pair.qqRoomId);
+        await qq.poke(target && target !== pair.qqRoomId);
       }
     }
     catch (e) {

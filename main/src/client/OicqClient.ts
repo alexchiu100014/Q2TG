@@ -68,7 +68,7 @@ export default class OicqClient extends QQClient {
     return this.oicq.nickname;
   }
 
-  public isOnline() {
+  public async isOnline() {
     return this.oicq.isOnline();
   }
 

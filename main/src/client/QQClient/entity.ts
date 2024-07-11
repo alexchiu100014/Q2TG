@@ -1,6 +1,9 @@
-import type { ForwardMessage, MessageRet, Quotable, Sendable } from '@icqqjs/icqq';
-import { GfsFileStat } from '@icqqjs/icqq/lib/gfs';
+import type { MessageRet, MfaceElem, Quotable, Sendable } from '@icqqjs/icqq';
 import { Gender, GroupRole } from '@icqqjs/icqq/lib/common';
+import { AtElem, FaceElem, ImageElem, PttElem, TextElem, VideoElem } from '@icqqjs/icqq/lib/message/elements';
+
+// 全平台支持的 Elem
+export type SendableElem = TextElem | FaceElem | ImageElem | AtElem | PttElem | VideoElem | MfaceElem;
 
 export interface QQEntity {
   readonly dm: boolean;
@@ -13,8 +16,6 @@ export interface QQEntity {
 
   sendMsg(content: Sendable, source?: Quotable): Promise<MessageRet>;
 
-  getForwardMsg(resid: string, fileName?: string): Promise<ForwardMessage[]>;
-
   getFileUrl(fid: string): Promise<string>;
 }
 
@@ -25,10 +26,6 @@ export interface QQUser extends QQEntity {
 export interface Friend extends QQUser {
   readonly nickname: string;
   readonly remark: string;
-
-  poke(self?: boolean): Promise<boolean>;
-
-  sendFile(file: string | Buffer | Uint8Array, filename?: string, callback?: (percentage: string) => void): Promise<string>;
 }
 
 export interface Group extends QQEntity {
@@ -40,18 +37,17 @@ export interface Group extends QQEntity {
 
   pickMember(uid: number, strict?: boolean): GroupMember;
 
-  pokeMember(uid: number): Promise<boolean>;
-
   muteMember(uid: number, duration?: number): Promise<void>;
 
   setCard(uid: number, card?: string): Promise<boolean>;
 }
 
 export interface GroupFs {
-  upload(file: string | Buffer | Uint8Array, pid?: string, name?: string, callback?: (percentage: string) => void): Promise<GfsFileStat>;
+  upload(file: string | Buffer | Uint8Array, pid?: string, name?: string, callback?: (percentage: string) => void): Promise<any>;
 }
 
 export interface GroupMember extends QQUser {
+  renew(): Promise<GroupMemberInfo>;
 }
 
 export interface GroupMemberInfo {
@@ -63,4 +59,14 @@ export interface GroupMemberInfo {
   readonly last_sent_time: number;
   readonly role: GroupRole;
   readonly title: string;
+}
+
+export interface ForwardMessage {
+  user_id: number;
+  nickname: string;
+  group_id?: number;
+  time: number;
+  seq: number;
+  message: SendableElem[];
+  raw_message: string;
 }
