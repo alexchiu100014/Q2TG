@@ -1,4 +1,4 @@
-import OicqClient, { CreateOicqParams } from '../OicqClient';
+import { CreateOicqParams } from '../OicqClient';
 import { Friend, Group } from './entity';
 import {
   FriendIncreaseEvent,
@@ -8,7 +8,7 @@ import {
   MessageRecallEvent, PokeEvent,
 } from './events';
 import type { FriendRequestEvent, GroupInviteEvent, ImageElem, MessageElem } from '@icqqjs/icqq';
-import { CreateNapCatParams, NapCatClient } from '../NapCatClient';
+import { CreateNapCatParams } from '../NapCatClient';
 
 export * from './events';
 export * from './entity';
@@ -40,17 +40,22 @@ export abstract class QQClient {
     }
 
     let client: Promise<QQClient>;
+    let clientType: {
+      create(params: CreateQQClientParams): Promise<QQClient>;
+    };
 
     switch (params.type) {
       case 'oicq':
-        client = OicqClient.create(params);
+        clientType = require('../OicqClient').default;
         break;
       case 'napcat':
-        client = NapCatClient.create(params);
+        clientType = require('../NapCatClient').NapCatClient;
         break;
       default:
         throw new Error('Unknown client type');
     }
+
+    client = clientType.create(params);
 
     this.existedBots[params.id] = client;
     return client;
