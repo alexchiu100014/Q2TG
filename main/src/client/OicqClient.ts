@@ -26,7 +26,7 @@ import { escapeXml, gzip, timestamp } from '@icqqjs/icqq/lib/common';
 import { pb } from '@icqqjs/icqq/lib/core';
 import env from '../models/env';
 import {
-  CreateQQClientParamsBase, Friend, FriendIncreaseEvent,
+  CreateQQClientParamsBase, Friend, FriendIncreaseEvent, Group,
   GroupMemberDecreaseEvent,
   GroupMemberIncreaseEvent,
   MessageEvent, MessageRecallEvent, PokeEvent,

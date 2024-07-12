@@ -78,7 +78,7 @@ export default class SetupController {
     if (this.instance.qq) {
       await this.setupService.informOwner('正在登录已设置好的 QQ');
       this.oicq = await QQClient.create({
-        type: 'oicq',
+        type: this.instance.qq.type,
         id: this.instance.qq.id,
         uin: Number(this.instance.qq.uin),
         password: this.instance.qq.password,
@@ -94,6 +94,7 @@ export default class SetupController {
             '请使用<a href="https://github.com/mzdluo123/TxCaptchaHelper/releases">此软件</a>验证并输入 Ticket',
           );
         },
+        wsUrl: this.instance.qq.wsUrl,
       });
     }
     else

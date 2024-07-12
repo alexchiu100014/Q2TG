@@ -91,23 +91,23 @@ export default class Instance {
     this._flags = dbEntry.flags;
   }
 
-  private async init(botToken?: string) {
-    this.log.debug('正在登录 TG Bot');
-    if (this.botSessionId) {
-      this.tgBot = await Telegram.connect(this._botSessionId);
-    }
-    else {
-      const token = this.id === 0 ? env.TG_BOT_TOKEN : botToken;
-      if (!token) {
-        throw new Error('botToken 未指定');
-      }
-      this.tgBot = await Telegram.create({
-        botAuthToken: token,
-      });
-      this.botSessionId = this.tgBot.sessionId;
-    }
-    this.log.info('TG Bot 登录完成');
+  private init(botToken?: string) {
     (async () => {
+      this.log.debug('正在登录 TG Bot');
+      if (this.botSessionId) {
+        this.tgBot = await Telegram.connect(this._botSessionId);
+      }
+      else {
+        const token = this.id === 0 ? env.TG_BOT_TOKEN : botToken;
+        if (!token) {
+          throw new Error('botToken 未指定');
+        }
+        this.tgBot = await Telegram.create({
+          botAuthToken: token,
+        });
+        this.botSessionId = this.tgBot.sessionId;
+      }
+      this.log.info('TG Bot 登录完成');
       if (!this.isSetup || !this._owner) {
         this.log.info('当前服务器未配置，请向 Bot 发送 /setup 来设置');
         this.setupController = new SetupController(this, this.tgBot);
@@ -122,7 +122,7 @@ export default class Instance {
         this._ownerChat = await this.tgBot.getChat(this.owner);
         this.log.debug('正在登录 OICQ');
         this.oicq = await QQClient.create({
-          type: 'oicq',
+          type: this.qq.type,
           id: this.qq.id,
           uin: Number(this.qq.uin),
           password: this.qq.password,
@@ -138,6 +138,7 @@ export default class Instance {
               '请使用<a href="https://github.com/mzdluo123/TxCaptchaHelper/releases">此软件</a>验证并输入 Ticket',
             );
           },
+          wsUrl: this.qq.wsUrl,
         });
         this.log.info('OICQ 登录完成');
       }
@@ -170,7 +171,7 @@ export default class Instance {
 
   public async login(botToken?: string) {
     await this.load();
-    await this.init(botToken);
+    this.init(botToken);
   }
 
   public static async start(instanceId: number, botToken?: string) {

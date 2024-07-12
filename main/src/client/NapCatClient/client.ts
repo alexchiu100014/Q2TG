@@ -47,12 +47,12 @@ export class NapCatClient extends QQClient {
       const echo = `${new Date().getTime()}${random.int(100000, 999999)}`;
       this.echoMap[echo] = { resolve, reject };
       this.ws.send(JSON.stringify({ action, params, echo }));
-      this.logger.trace('send', JSON.stringify({ action, params, echo }));
+      this.logger.debug('send', JSON.stringify({ action, params, echo }));
     });
   }
 
   private async handleWebSocketMessage(message: string) {
-    this.logger.trace('receive', message);
+    this.logger.debug('receive', message);
     const data = JSON.parse(message) as WSReceiveHandler[keyof WSReceiveHandler] & { echo: string; status: 'ok' | 'error'; data: any; message: string };
     if (data.echo) {
       const promise = this.echoMap[data.echo];
