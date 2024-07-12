@@ -55,7 +55,7 @@ export default class ConfigService {
   public async addFriend() {
     const friends = await this.oicq.getFriendsWithCluster();
     await (await this.owner).createPaginatedInlineSelector('选择分组', friends.map(e => [
-      Button.inline(e.name, this.tgBot.registerCallback(
+      Button.inline(e.name || '(未知名称)', this.tgBot.registerCallback(
         () => this.openFriendSelection(e.friends, e.name),
       )),
     ]));

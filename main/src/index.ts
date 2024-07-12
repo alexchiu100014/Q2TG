@@ -17,8 +17,13 @@ import posthog from './models/posthog';
   const log = getLogger('Main');
 
   process.on('unhandledRejection', error => {
-    log.error('UnhandledException: ', error);
-    posthog.capture('UnhandledException', { error });
+    log.error('UnhandledRejection: ', error);
+    posthog.capture('UnhandledRejection', { error });
+  });
+
+  process.on('uncaughtException', error => {
+    log.error('UncaughtException: ', error);
+    posthog.capture('UncaughtException', { error });
   });
 
   await api.startListening();
