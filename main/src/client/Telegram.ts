@@ -60,6 +60,7 @@ export default class Telegram {
         autoReconnect: true,
         networkSocket: env.TG_CONNECTION === 'websocket' ? PromisedWebSockets : PromisedNetSockets,
         connection: env.TG_CONNECTION === 'websocket' ? ConnectionTCPObfuscated : ConnectionTCPFull,
+        testServers: env.TG_USE_TEST_DC,
       },
     );
     this.client.logger.setLevel(env.TG_LOG_LEVEL as LogLevel);
