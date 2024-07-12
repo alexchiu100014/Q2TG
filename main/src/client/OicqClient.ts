@@ -183,64 +183,40 @@ export default class OicqClient extends QQClient {
       'atme' in event ? event.atme : false,
       'atall' in event ? event.atall : false,
     );
-    for (const handler of this.onMessageHandlers) {
-      const res = await handler(gEvent);
-      if (res) return;
-    }
+    await this.callHandlers(this.onMessageHandlers, gEvent);
   };
 
   private onGroupMemberIncrease = async (event: MemberIncreaseEvent) => {
     const gEvent = new GroupMemberIncreaseEvent(event.group, event.user_id, event.nickname);
-    for (const handler of this.onGroupMemberIncreaseHandlers) {
-      const res = await handler(gEvent);
-      if (res) return;
-    }
+    await this.callHandlers(this.onGroupMemberIncreaseHandlers, gEvent);
   };
 
   private onGroupMemberDecrease = async (event: MemberDecreaseEvent) => {
     const gEvent = new GroupMemberDecreaseEvent(event.group, event.user_id, event.operator_id, event.dismiss);
-    for (const handler of this.onGroupMemberDecreaseHandlers) {
-      const res = await handler(gEvent);
-      if (res) return;
-    }
+    await this.callHandlers(this.onGroupMemberDecreaseHandlers, gEvent);
   };
 
   private onFriendIncrease = async (event: OicqFriendIncreaseEvent) => {
     const gEvent = new FriendIncreaseEvent(event.friend);
-    for (const handler of this.onFriendIncreaseHandlers) {
-      const res = await handler(gEvent);
-      if (res) return;
-    }
+    await this.callHandlers(this.onFriendIncreaseHandlers, gEvent);
   };
 
   private onMessageRecall = async (event: FriendRecallEvent | GroupRecallEvent) => {
     const gEvent = new MessageRecallEvent('friend' in event ? event.friend : event.group, event.seq, event.rand, event.time);
-    for (const handler of this.onMessageRecallHandlers) {
-      const res = await handler(gEvent);
-      if (res) return;
-    }
+    await this.callHandlers(this.onMessageRecallHandlers, gEvent);
   };
 
   private onPoke = async (event: FriendPokeEvent | GroupPokeEvent) => {
     const gEvent = new PokeEvent('friend' in event ? event.friend : event.group, event.operator_id, event.target_id, event.action, event.suffix);
-    for (const handler of this.onPokeHandlers) {
-      const res = await handler(gEvent);
-      if (res) return;
-    }
+    await this.callHandlers(this.onPokeHandlers, gEvent);
   };
 
   private onFriendRequest = async (event: FriendRequestEvent) => {
-    for (const handler of this.onFriendRequestHandlers) {
-      const res = await handler(event);
-      if (res) return;
-    }
+    await this.callHandlers(this.onFriendRequestHandlers, event);
   };
 
   private onGroupInvite = async (event: GroupInviteEvent) => {
-    for (const handler of this.onGroupInviteHandlers) {
-      const res = await handler(event);
-      if (res) return;
-    }
+    await this.callHandlers(this.onGroupInviteHandlers, event);
   };
 
   public async makeForwardMsgSelf(msglist: Forwardable[] | Forwardable, dm?: boolean): Promise<{

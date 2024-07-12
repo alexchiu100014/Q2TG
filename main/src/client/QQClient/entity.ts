@@ -1,7 +1,7 @@
 import type { MessageRet, MfaceElem, Quotable, Sendable } from '@icqqjs/icqq';
 import { Gender, GroupRole } from '@icqqjs/icqq/lib/common';
 import { AtElem, FaceElem, ImageElem, PttElem, TextElem, VideoElem } from '@icqqjs/icqq/lib/message/elements';
-import { QQClient } from './index';
+import type { Receive } from 'node-napcat-ts';
 
 // 全平台支持的 Elem
 export type SendableElem = TextElem | FaceElem | ImageElem | AtElem | PttElem | VideoElem | MfaceElem;

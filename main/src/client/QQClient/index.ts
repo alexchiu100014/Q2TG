@@ -70,6 +70,12 @@ export abstract class QQClient {
   public abstract getGroupList(): Promise<Group[]>;
 
 
+  protected async callHandlers<T>(handlers: Array<(e: T) => Promise<void | boolean>>, e: T) {
+    for (const handler of handlers) {
+      if (await handler(e)) return;
+    }
+  }
+
   // Handlers
   protected readonly onMessageHandlers: Array<(e: MessageEvent) => Promise<void | boolean>> = [];
 

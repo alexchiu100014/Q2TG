@@ -1,9 +1,11 @@
-import { CreateQQClientParamsBase, Friend, Group, QQClient } from '../QQClient';
+import { CreateQQClientParamsBase, Friend, FriendIncreaseEvent, Group, GroupMemberDecreaseEvent, GroupMemberIncreaseEvent, MessageEvent, MessageRecallEvent, PokeEvent, QQClient } from '../QQClient';
 import random from '../../utils/random';
 import { getLogger, Logger } from 'log4js';
 import posthog from '../../models/posthog';
-import type { WSSendParam, WSSendReturn } from 'node-napcat-ts';
+import type { Receive, WSReceiveHandler, WSSendParam, WSSendReturn } from 'node-napcat-ts';
 import { NapCatFriend, NapCatGroup } from './entity';
+import { napCatReceiveToMessageElem } from './convert';
+import { NapCatFriendRequestEvent, NapCatGroupEvent, NapCatGroupInviteEvent } from './event';
 
 export interface CreateNapCatParams extends CreateQQClientParamsBase {
   type: 'napcat';
@@ -51,7 +53,7 @@ export class NapCatClient extends QQClient {
 
   private async handleWebSocketMessage(message: string) {
     this.logger.trace('receive', message);
-    const data = JSON.parse(message);
+    const data = JSON.parse(message) as WSReceiveHandler[keyof WSReceiveHandler] & { echo: string; status: 'ok' | 'error'; data: any; message: string };
     if (data.echo) {
       const promise = this.echoMap[data.echo];
       if (!promise) return;
@@ -63,10 +65,109 @@ export class NapCatClient extends QQClient {
       }
       return;
     }
+    if (data.post_type === 'message')
+      await this.handleMessage(data);
+    else if (data.post_type === 'notice' && data.notice_type === 'group_increase')
+      await this.handleGroupIncrease(data);
+    else if (data.post_type === 'notice' && data.notice_type === 'group_decrease')
+      await this.handleGroupDecrease(data);
+    else if (data.post_type === 'notice' && data.notice_type === 'friend_add')
+      await this.handleFriendIncrease(data);
+    else if (data.post_type === 'notice' && data.notice_type === 'friend_recall')
+      await this.handleMessageRecall(data);
+    else if (data.post_type === 'notice' && data.notice_type === 'group_recall')
+      await this.handleMessageRecall(data);
+    else if (data.post_type === 'notice' && data.notice_type === 'notify' && data.sub_type === 'poke')
+      await this.handlePoke(data);
+    else if (data.post_type === 'request' && data.request_type === 'friend')
+      await this.handleFriendRequest(data);
+    else if (data.post_type === 'request' && data.request_type === 'group' && data.sub_type === 'invite')
+      await this.handleGroupRequest(data);
   }
 
   public uin: number;
   public nickname: string;
+
+  private async handleMessage(data: WSReceiveHandler['message']) {
+    let chat: Friend | Group;
+    if (data.message_type === 'private') {
+      // sender 一定是对方
+      chat = NapCatFriend.createExisted(this, { uid: data.user_id, remark: data.sender.card, nickname: data.sender.nickname });
+    }
+    else {
+      // 上报没有群名
+      chat = await this.pickGroup(data.group_id);
+    }
+    const message = (data.message as unknown as Receive[keyof Receive][]);
+    const replyNode = message.find(it => it.type === 'reply');
+    const replyMessage = replyNode ? await this.getMessage(replyNode.data.id) : undefined;
+    const event = new MessageEvent(
+      { id: data.sender.user_id, card: data.sender.card, nickname: data.sender.nickname, name: data.sender.card || data.sender.nickname },
+      chat,
+      message.map(napCatReceiveToMessageElem),
+      data.message_id,
+      0, 0,
+      data.time,
+      data.raw_message,
+      replyMessage ? {
+        message: (replyMessage as any).message.filter(it => it.type !== 'reply').map(napCatReceiveToMessageElem),
+        rand: 0, fromId: replyMessage.sender.user_id, seq: replyMessage.message_id, time: replyMessage.time,
+      } : undefined,
+      undefined,
+      data.message_id.toString(),
+      replyMessage.sender.user_id === this.uin || message.some(it => it.type === 'at' && it.data.qq === this.uin),
+      message.some(it => it.type === 'at' && (it.data.qq === 0 || it.data.qq === 'all')),
+    );
+    for (const handler of this.onMessageHandlers) {
+      if (await handler(event)) {
+        break;
+      }
+    }
+  }
+
+  private async handleGroupIncrease(data: WSReceiveHandler['notice.group_increase']) {
+    const user = await this.callApi('get_stranger_info', { user_id: data.user_id });
+    const event = new GroupMemberIncreaseEvent(await this.pickGroup(data.group_id), data.user_id, user.nickname);
+    await this.callHandlers(this.onGroupMemberIncreaseHandlers, event);
+  }
+
+  private async handleGroupDecrease(data: WSReceiveHandler['notice.group_decrease']) {
+    const event = new GroupMemberDecreaseEvent(await this.pickGroup(data.group_id), data.user_id, data.operator_id, false);
+    await this.callHandlers(this.onGroupMemberDecreaseHandlers, event);
+  }
+
+  private async handleFriendIncrease(data: WSReceiveHandler['notice.friend_add']) {
+    const event = new FriendIncreaseEvent(await NapCatFriend.create(this, data.user_id));
+    await this.callHandlers(this.onFriendIncreaseHandlers, event);
+  }
+
+  private async handleMessageRecall(data: WSReceiveHandler['notice.friend_recall'] | WSReceiveHandler['notice.group_recall']) {
+    const chat = data.notice_type === 'friend_recall' ? await this.pickFriend(data.user_id) : await this.pickGroup(data.group_id);
+    const event = new MessageRecallEvent(chat, data.message_id, 0, data.time);
+    await this.callHandlers(this.onMessageRecallHandlers, event);
+  }
+
+  private async handlePoke(data: WSReceiveHandler['notice.notify.poke.group'] | WSReceiveHandler['notice.notify.poke.friend']) {
+    const chat = 'group_id' in data ? await this.pickGroup(data.group_id) : await this.pickFriend(data.user_id);
+    const operator = 'group_id' in data ? data.user_id : data.sender_id;
+    const event = new PokeEvent(chat, operator, data.target_id, '戳了戳', undefined);
+    await this.callHandlers(this.onPokeHandlers, event);
+  }
+
+  private async handleFriendRequest(data: WSReceiveHandler['request.friend']) {
+    const event = await NapCatFriendRequestEvent.create(this, data);
+    await this.callHandlers(this.onFriendRequestHandlers, event);
+  }
+
+  private async handleGroupRequest(data: WSReceiveHandler['request.group']) {
+    const event = await NapCatGroupEvent.create(this, data);
+    // 上面过滤过了
+    await this.callHandlers(this.onGroupInviteHandlers, event as NapCatGroupInviteEvent);
+  }
+
+  public async getMessage(messageId: number) {
+    return await this.callApi('get_msg', { message_id: messageId });
+  }
 
   public async refreshSelf() {
     const data = await this.callApi('get_login_info');
