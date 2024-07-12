@@ -9,7 +9,7 @@ import { Send } from 'node-napcat-ts';
 export abstract class NapCatEntity implements QQEntity {
   protected logger: Logger;
 
-  protected constructor(protected readonly client: NapCatClient) {
+  protected constructor(public readonly client: NapCatClient) {
     this.logger = getLogger('NapCatEntity');
   }
 
@@ -222,6 +222,10 @@ export class NapCatGroup extends NapCatEntity implements Group {
       });
     },
   };
+
+  async getAllMemberInfo() {
+    return await this.client.callApi('get_group_member_list', { group_id: this.gid });
+  }
 }
 
 export class NapCatGroupMember extends NapCatUser implements GroupMember {

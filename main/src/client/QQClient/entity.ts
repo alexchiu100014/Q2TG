@@ -1,11 +1,13 @@
 import type { MessageRet, MfaceElem, Quotable, Sendable } from '@icqqjs/icqq';
 import { Gender, GroupRole } from '@icqqjs/icqq/lib/common';
 import { AtElem, FaceElem, ImageElem, PttElem, TextElem, VideoElem } from '@icqqjs/icqq/lib/message/elements';
+import { QQClient } from './index';
 
 // 全平台支持的 Elem
 export type SendableElem = TextElem | FaceElem | ImageElem | AtElem | PttElem | VideoElem | MfaceElem;
 
 export interface QQEntity {
+  readonly client: { uin: number };
   readonly dm: boolean;
 
   getForwardMsg(resid: string, fileName?: string): Promise<ForwardMessage[]>;
@@ -51,6 +53,7 @@ export interface GroupMember extends QQUser {
 }
 
 export interface GroupMemberInfo {
+  readonly user_id: number;
   readonly card: string;
   readonly nickname: string;
   readonly sex: Gender;

@@ -212,21 +212,14 @@ export default class ForwardController {
     else {
       const chat = event.chat as Group;
       const operator = chat.pickMember(event.fromId);
-      let operatorInfo: GroupMemberInfo;
-      if (operator instanceof OicqGroupMember) {
-        operatorInfo = await operator.renew();
-      }
-      // TODO: NapCat
+      let operatorInfo = await operator.renew();
       operatorName = operatorInfo.card || operatorInfo.nickname;
       if (event.fromId === event.targetId) {
         targetName = '自己';
       }
       else {
         const targetUser = chat.pickMember(event.targetId);
-        let targetInfo: GroupMemberInfo;
-        if (targetUser instanceof OicqGroupMember) {
-          targetInfo = await targetUser.renew();
-        }
+        let targetInfo = await targetUser.renew();
         targetName = targetInfo.card || targetInfo.nickname;
       }
     }
