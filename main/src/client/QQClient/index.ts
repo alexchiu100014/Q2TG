@@ -1,5 +1,5 @@
 import { CreateOicqParams } from '../OicqClient';
-import { Friend, Group } from './entity';
+import { Friend, Group, SendableElem } from './entity';
 import {
   FriendIncreaseEvent,
   GroupMemberDecreaseEvent,
@@ -7,7 +7,7 @@ import {
   MessageEvent,
   MessageRecallEvent, PokeEvent,
 } from './events';
-import type { FriendRequestEvent, GroupInviteEvent, ImageElem, MessageElem } from '@icqqjs/icqq';
+import type { FriendRequestEvent, GroupInviteEvent, ImageElem } from '@icqqjs/icqq';
 import { CreateNapCatParams } from '../NapCatClient';
 
 export * from './events';
@@ -187,8 +187,8 @@ export abstract class QQClient {
 
   public abstract pickGroup(groupId: number): Promise<Group>;
 
-  public async createSpoilerImageEndpoint(image: ImageElem, nickname: string, title?: string): Promise<MessageElem[]> {
-    const res: MessageElem[] = [
+  public async createSpoilerImageEndpoint(image: ImageElem, nickname: string, title?: string): Promise<SendableElem[]> {
+    const res: SendableElem[] = [
       {
         type: 'text',
         text: '[Spoiler 图片]',

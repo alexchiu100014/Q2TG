@@ -16,9 +16,8 @@ import {
   PokeEvent,
   Friend,
   Group,
-  GroupMemberInfo,
+
 } from '../client/QQClient';
-import { Member as OicqGroupMember } from '@icqqjs/icqq';
 import posthog from '../models/posthog';
 
 export default class ForwardController {

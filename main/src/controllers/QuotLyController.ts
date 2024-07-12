@@ -11,7 +11,7 @@ import convert from '../helpers/convert';
 import { Pair } from '../models/Pair';
 import env from '../models/env';
 import flags from '../constants/flags';
-import { MessageEvent, QQClient, Group } from '../client/QQClient';
+import { MessageEvent, QQClient } from '../client/QQClient';
 import posthog from '../models/posthog';
 
 export default class {

@@ -26,8 +26,7 @@ import { escapeXml, gzip, timestamp } from '@icqqjs/icqq/lib/common';
 import { pb } from '@icqqjs/icqq/lib/core';
 import env from '../models/env';
 import {
-  CreateQQClientParamsBase, Friend, FriendIncreaseEvent, Group,
-  GroupMemberDecreaseEvent,
+  CreateQQClientParamsBase, Friend, FriendIncreaseEvent, GroupMemberDecreaseEvent,
   GroupMemberIncreaseEvent,
   MessageEvent, MessageRecallEvent, PokeEvent,
   QQClient,
@@ -337,6 +336,6 @@ export default class OicqClient extends QQClient {
 >${title ? `<title color="#303133" size="26">${escapeXml(title)}</title>` : ''
         }<hr hidden="false" style="0" /><summary size="26" color="#777777">请谨慎查看</summary
 ></item><source name="Q2TG" icon="" action="" appid="-1" /></msg>`.replaceAll('\n', ''),
-    } as XmlElem];
+    } as XmlElem] as any;
   }
 }

@@ -1,6 +1,6 @@
 import Instance from '../models/Instance';
 import Telegram from '../client/Telegram';
-import { AtElem, Sendable } from '@icqqjs/icqq';
+import { AtElem } from '@icqqjs/icqq';
 import { Pair } from '../models/Pair';
 import { Api } from 'telegram';
 import db from '../models/db';
@@ -8,7 +8,7 @@ import BigInteger from 'big-integer';
 import helper from '../helpers/forwardHelper';
 import { getLogger, Logger } from 'log4js';
 import flags from '../constants/flags';
-import { MessageEvent, QQClient, Group, GroupMemberInfo } from '../client/QQClient';
+import { MessageEvent, QQClient, Group, GroupMemberInfo, Sendable } from '../client/QQClient';
 import { Member as OicqMember } from '@icqqjs/icqq/lib/member';
 
 type ActionSubjectTg = {

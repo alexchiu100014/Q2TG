@@ -100,6 +100,9 @@ export class NapCatClient extends QQClient {
     }
     const message = (data.message as unknown as Receive[keyof Receive][]);
     const replyNode = message.find(it => it.type === 'reply');
+    if (replyNode) {
+      message.splice(message.indexOf(replyNode), 1);
+    }
     const replyMessage = replyNode ? await this.getMessage(replyNode.data.id) : undefined;
     const event = new MessageEvent(
       { id: data.sender.user_id, card: data.sender.card, nickname: data.sender.nickname, name: data.sender.card || data.sender.nickname },

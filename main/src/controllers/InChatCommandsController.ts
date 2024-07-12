@@ -5,7 +5,7 @@ import Telegram from '../client/Telegram';
 import { Api } from 'telegram';
 import flags from '../constants/flags';
 import { editFlags } from '../utils/flagControl';
-import { QQClient, Group } from '../client/QQClient';
+import { QQClient } from '../client/QQClient';
 
 export default class InChatCommandsController {
   private readonly service: InChatCommandsService;

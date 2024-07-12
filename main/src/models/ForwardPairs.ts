@@ -7,7 +7,7 @@ import { BigInteger } from 'big-integer';
 import { Pair } from './Pair';
 import { getLogger, Logger } from 'log4js';
 import Instance from './Instance';
-import posthog from './posthog';
+import OicqClient from '../client/OicqClient';
 
 export default class ForwardPairs {
   private pairs: Pair[] = [];
@@ -81,6 +81,7 @@ export default class ForwardPairs {
   public async initMapInstance(instances: Instance[]) {
     for (const forwardPair of this.pairs) {
       for (const instance of instances) {
+        if(!(instance.oicq instanceof OicqClient)) continue;
         const instanceTgUserId = instance.userMe.id.toString();
         if (forwardPair.instanceMapForTg[instanceTgUserId]) continue;
         try {

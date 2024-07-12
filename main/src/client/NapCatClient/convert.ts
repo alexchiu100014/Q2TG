@@ -1,6 +1,6 @@
 import type { Receive, Send } from 'node-napcat-ts';
 import { SendableElem } from '../QQClient';
-import { MessageElem, segment } from '@icqqjs/icqq';
+import { MessageElem } from '@icqqjs/icqq';
 
 export const messageElemToNapCatSendable = (elem: SendableElem): Send[keyof Send] => {
   switch (elem.type) {

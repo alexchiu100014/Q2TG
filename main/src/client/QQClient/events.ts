@@ -1,5 +1,5 @@
-import { Friend, Group } from './index';
-import type { Sendable, MessageElem } from '@icqqjs/icqq';
+import { Friend, Group, Sendable } from './index';
+import type { MessageElem } from '@icqqjs/icqq';
 import type { Receive } from 'node-napcat-ts';
 
 export abstract class ChatEvent {
