@@ -11,6 +11,7 @@ import Instance from '../models/Instance';
 import env from '../models/env';
 import { QQClient } from '../client/QQClient';
 import posthog from '../models/posthog';
+import db from '../models/db';
 
 export default class SetupController {
   private readonly setupService: SetupService;
@@ -96,6 +97,29 @@ export default class SetupController {
         },
         wsUrl: this.instance.qq.wsUrl,
       });
+    }
+    else if (env.NAPCAT_WS_URL && this.instance.id === 0) {
+      try {
+        const dbQQBot = await db.qqBot.create({
+          data: {
+            type: 'napcat',
+            wsUrl: env.NAPCAT_WS_URL,
+          },
+        });
+        this.oicq = await QQClient.create({
+          ...dbQQBot,
+          type: 'napcat',
+        });
+        this.instance.qqBotId = dbQQBot.id;
+        await this.setupService.informOwner(`连接 NapCat 成功`);
+      }
+      catch (e){
+        this.log.error('连接 NapCat 失败', e);
+        posthog.capture('连接 NapCat 失败', { error: e });
+        await this.setupService.informOwner(`连接 NapCat 失败\n${e.message}`);
+        this.isInProgress = false;
+        throw e;
+      }
     }
     else
       try {

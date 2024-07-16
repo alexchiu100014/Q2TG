@@ -12,6 +12,9 @@ const configParsed = z.object({
   FFMPEG_PATH: z.string().optional(),
   FFPROBE_PATH: z.string().optional(),
 
+  // 只会在实例 0 自动使用
+  NAPCAT_WS_URL: z.string().url().optional(),
+
   SIGN_API: z.string().url().optional(),
   SIGN_VER: z.string().optional(),
 
