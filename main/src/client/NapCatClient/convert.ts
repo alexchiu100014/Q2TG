@@ -1,66 +1,69 @@
 import type { Receive, Send } from 'node-napcat-ts';
 import { SendableElem } from '../QQClient';
 import { MessageElem } from '@icqqjs/icqq';
+import { file as createTempFileBase, FileResult } from 'tmp-promise';
+import fsP from 'fs/promises';
+import env from '../../models/env';
+import fs from 'fs';
+import { Readable } from 'node:stream';
 
-export const messageElemToNapCatSendable = (elem: SendableElem): Send[keyof Send] => {
+const createTempFile = (options: Parameters<typeof createTempFileBase>[0] = {}) => createTempFileBase({
+  tmpdir: env.CACHE_DIR,
+  ...options,
+});
+
+export const messageElemToNapCatSendable = async (elem: SendableElem): Promise<{ elem: Send[keyof Send], tempFiles: FileResult[] }> => {
+  const noTmp = (elem: Send[keyof Send]) => ({
+    elem,
+    tempFiles: [],
+  });
   switch (elem.type) {
     case 'at':
-      return {
-        type: elem.type,
-        data: elem,
-      };
     case 'text':
-      return {
-        type: elem.type,
-        data: elem,
-      };
     case 'face':
-      return {
+      return noTmp({
         type: elem.type,
         data: elem,
-      };
+      } as any);
     case 'rps':
     case 'dice':
-      return {
+      return noTmp({
         type: elem.type,
         data: {
           result: elem.id,
         },
-      };
-    // TODO: 文件落本地
+      });
     case 'image':
-      if (elem.file !== 'string') {
-        throw new Error('TODO');
-      }
-      return {
-        type: elem.type,
-        data: {
-          file: elem.file,
-          summary: '图片',
-          name: '图片',
-        },
-      };
     case 'record':
-      if (elem.file !== 'string') {
-        throw new Error('TODO');
-      }
-      return {
-        type: elem.type,
-        data: {
-          file: elem.file,
-          name: '语音',
-        },
-      };
     case 'video':
-      if (elem.file !== 'string') {
-        throw new Error('TODO');
+      const tempFiles: FileResult[] = [];
+      if (Buffer.isBuffer(elem.file)) {
+        const file = await createTempFile({ postfix: '.tmp' });
+        tempFiles.push(file);
+        await fsP.writeFile(file.path, elem.file);
+        elem.file = file.path;
+      }
+      else if (typeof elem.file === 'object' && 'pipe' in elem.file) {
+        const file = await createTempFile({ postfix: '.tmp' });
+        tempFiles.push(file);
+        await new Promise((resolve, reject) => {
+          const writeStream = fs.createWriteStream(file.path);
+          writeStream.on('error', reject);
+          writeStream.on('finish', resolve);
+          (elem.file as Readable).pipe(writeStream);
+        });
+        elem.file = file.path;
       }
       return {
-        type: elem.type,
-        data: {
-          file: elem.file,
-          name: '视频',
-        },
+        elem: {
+          type: elem.type,
+          data: {
+            file: elem.file,
+            summary: elem.type,
+            name: elem.type,
+          },
+        } as any,
+        tempFiles,
       };
     case 'sface':
     default:

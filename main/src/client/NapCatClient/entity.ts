@@ -1,10 +1,11 @@
-import { MessageRet, Quotable, Sendable } from '@icqqjs/icqq';
-import { ForwardMessage, Friend, Group, GroupFs, GroupMember, QQEntity, QQUser } from '../QQClient';
+import { MessageRet, Quotable } from '@icqqjs/icqq';
+import { ForwardMessage, Friend, Group, GroupFs, GroupMember, QQEntity, QQUser, Sendable, SendableElem } from '../QQClient';
 import { NapCatClient } from './client';
 import { messageElemToNapCatSendable, napCatReceiveToMessageElem } from './convert';
 import { getLogger, Logger } from 'log4js';
 import posthog from '../../models/posthog';
 import { Send } from 'node-napcat-ts';
+import { FileResult } from 'tmp-promise';
 
 export abstract class NapCatEntity implements QQEntity {
   protected logger: Logger;
@@ -46,7 +47,7 @@ export abstract class NapCatEntity implements QQEntity {
 
   protected abstract sendMsgImpl(message: Send[keyof Send][]): Promise<MessageRet>;
 
-  sendMsg(content: Sendable, source?: Quotable): Promise<MessageRet> {
+  async sendMsg(content: Sendable, source?: Quotable): Promise<MessageRet> {
     if (!Array.isArray(content)) {
       content = [content];
     }
@@ -57,7 +58,12 @@ export abstract class NapCatEntity implements QQEntity {
       return it;
     });
 
-    const message = content.map(messageElemToNapCatSendable);
+    const tmpFiles: FileResult[] = [];
+    const message = await Promise.all(content.map(async it => {
+      const { elem, tempFiles } = await messageElemToNapCatSendable(it as SendableElem);
+      tmpFiles.push(...tempFiles);
+      return elem;
+    }));
     if (source) {
       // TODO 不同框架 messageId / seq 不一样，无缝模式下不能交叉回复
       message.push({
@@ -68,7 +74,9 @@ export abstract class NapCatEntity implements QQEntity {
       });
     }
 
-    return this.sendMsgImpl(message);
+    const ret = await this.sendMsgImpl(message);
+    tmpFiles.forEach(it => it.cleanup());
+    return ret;
   }
 
   // 文件会被下载，返回的是绝对路径
