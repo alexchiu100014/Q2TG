@@ -9,6 +9,7 @@ import { imageSize } from 'image-size';
 import env from '../models/env';
 import { md5Hex } from '../utils/hashing';
 import posthog from '../models/posthog';
+import fs from 'fs';
 
 const log = getLogger('ForwardHelper');
 
@@ -17,14 +18,28 @@ const htmlEscape = (text: string) =>
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
+const bufferOrPathCustomFile = (filename: string, bufferOrPath: Buffer | string) => {
+  const isBuffer = Buffer.isBuffer(bufferOrPath);
+  let size: number;
+  if (isBuffer) {
+    size = bufferOrPath.length;
+  }
+  else {
+    size = fs.statSync(bufferOrPath).size;
+  }
+  return new CustomFile(filename, size, isBuffer ? '' : bufferOrPath, isBuffer ? bufferOrPath : undefined);
+};
+
 export default {
   async downloadToCustomFile(url: string, allowWebp = false, filename?: string) {
-    const { fileTypeFromBuffer } = await (Function('return import("file-type")')() as Promise<typeof import('file-type')>);
-    const file = await fetchFile(url);
+    const { fileTypeFromBuffer, fileTypeFromFile } = await (Function('return import("file-type")')() as Promise<typeof import('file-type')>);
+    // url 可以是一个本地路径
+    const file = /^https?:\/\//.test(url) ? await fetchFile(url) : url;
+    const isBuffer = Buffer.isBuffer(file);
     if (filename) {
-      return new CustomFile(filename, file.length, '', file);
+      return bufferOrPathCustomFile(filename, file);
     }
-    const type = await fileTypeFromBuffer(file);
+    const type = await (isBuffer ? fileTypeFromBuffer : fileTypeFromFile)(file as any);
     // The photo must be at most 10 MB in size. The photo's width and height must not exceed 10000 in total. Width and height ratio must be at most 20
     if (type.ext === 'png' || type.ext === 'jpg') {
       const dimensions = imageSize(file);
@@ -37,11 +52,11 @@ export default {
       }
     }
     if (allowWebp) {
-      return new CustomFile(`image.${type.ext}`, file.length, '', file);
+      return bufferOrPathCustomFile(`image.${type.ext}`, file);
     }
     else {
       // 防止 webp 作为贴纸发送时丢失发送者信息
-      return new CustomFile(`image.${type.ext === 'webp' ? 'png' : type.ext}`, file.length, '', file);
+      return bufferOrPathCustomFile(`image.${type.ext === 'webp' ? 'png' : type.ext}`, file);
     }
   },
 

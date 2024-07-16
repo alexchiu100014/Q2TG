@@ -265,38 +265,52 @@ export default class ForwardService {
             break;
           }
           case 'file': {
-            const extName = path.extname(elem.name);
             // 50M 以下文件下载转发
-            if (elem.size < 1024 * 1024 * 50 || exts.images.includes(extName.toLowerCase())) {
-              // 是图片
-              let url = await pair.qq.getFileUrl(elem.fid);
-              if (url.includes('?fname=')) {
-                url = url.split('?fname=')[0];
-                // Request path contains unescaped characters
-              }
-              this.log.info('正在发送媒体，长度', helper.hSize(elem.size));
-              try {
-                const file = await helper.downloadToCustomFile(url, !(message || messageHeader), elem.name);
-                if (file instanceof CustomFile && file.size > 10 * 1024 * 1024) {
-                  this.log.info('强制使用文件发送');
-                  forceDocument = true;
-                }
-                files.push(file);
-              }
-              catch (e) {
-                this.log.error('下载媒体失败', e);
-                posthog.capture('下载媒体失败', { error: e });
-                // 下载失败让 Telegram 服务器下载
-                files.push(url);
-              }
-            }
             message = `文件: ${helper.htmlEscape(elem.name)}\n` +
               `大小: ${helper.hSize(elem.size)}`;
+            if (elem.size < 1024 * 1024 * 50) {
+              try {
+                let url = await pair.qq.getFileUrl(elem.fid); // NapCat 这一步会下载文件并返回本地路径
+                if (url.includes('?fname=')) {
+                  url = url.split('?fname=')[0];
+                  // 防止 Request path contains unescaped characters
+                }
+                this.log.info('正在发送媒体，长度', helper.hSize(elem.size));
+                try {
+                  const file = await helper.downloadToCustomFile(url, !(message || messageHeader), elem.name);
+                  if (file instanceof CustomFile && file.size > 10 * 1024 * 1024) {
+                    this.log.info('强制使用文件发送');
+                    forceDocument = true;
+                  }
+                  files.push(file);
+                }
+                catch (e) {
+                  // 处理 helper.downloadToCustomFile 异常
+                  this.log.error('下载媒体失败', e);
+                  posthog.capture('下载媒体失败', { error: e });
+                  // 下载失败让 Telegram 服务器下载
+                  if (/https?:\/\//.test(url)) {
+                    files.push(url);
+                  }
+                  else {
+                    message += '\n\n<i>下载失败</i>';
+                  }
+                }
+              }
+              catch (e) {
+                // 处理 NapCat 下载文件失败
+                this.log.error('QQ 客户端处理群文件失败', e);
+                posthog.capture('QQ 客户端处理群文件失败', { error: e });
+                message += '\n\n<i>QQ 客户端处理群文件失败</i>';
+              }
+            }
             const dbEntry = await db.file.create({
               data: { fileId: elem.fid, roomId: pair.qqRoomId, info: message },
             });
-            buttons.push(Button.url('📎获取下载地址',
-              `https://t.me/${this.tgBot.me.username}?start=file-${dbEntry.id}`));
+            if (this.oicq instanceof OicqClient) {
+              buttons.push(Button.url('📎获取下载地址',
+                `https://t.me/${this.tgBot.me.username}?start=file-${dbEntry.id}`));
+            }
             break;
           }
           case 'record': {
