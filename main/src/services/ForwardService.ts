@@ -32,7 +32,6 @@ import emoji from '../constants/emoji';
 import convert from '../helpers/convert';
 import { QQMessageSent } from '../types/definitions';
 import ZincSearch from 'zincsearch-node';
-import { speech as AipSpeechClient } from 'baidu-aip-sdk';
 import Docker from 'dockerode';
 import ReplyKeyboardHide = Api.ReplyKeyboardHide;
 import env from '../models/env';
@@ -50,7 +49,6 @@ const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/apng', 'image/webp', 'ima
 export default class ForwardService {
   private readonly log: Logger;
   private readonly zincSearch: ZincSearch;
-  private readonly speechClient: AipSpeechClient;
   private readonly restartSignCallbackHandle?: Buffer;
 
   constructor(private readonly instance: Instance,
@@ -63,13 +61,6 @@ export default class ForwardService {
         user: env.ZINC_USERNAME,
         password: env.ZINC_PASSWORD,
       });
-    }
-    if (env.BAIDU_APP_ID) {
-      this.speechClient = new AipSpeechClient(
-        env.BAIDU_APP_ID,
-        env.BAIDU_API_KEY,
-        env.BAIDU_SECRET_KEY,
-      );
     }
     if (oicq instanceof OicqClient && oicq.signDockerId) {
       const socket = new Docker({ socketPath: '/var/run/docker.sock' });
@@ -312,22 +303,6 @@ export default class ForwardService {
               url = (refetchMessage.message.find(it => it.type === 'record') as PttElem).url;
             }
             await silk.decode(await fetchFile(url), temp.path);
-            if (this.speechClient) {
-              const pcmPath = await createTempFile({ postfix: '.pcm' });
-              tempFiles.push(pcmPath);
-              await silk.conventOggToPcm16000(temp.path, pcmPath.path);
-              const pcm = await fsP.readFile(pcmPath.path);
-              const recognize = await this.speechClient.recognize(pcm, 'pcm', 16000, {
-                dev_pid: 1537,
-                cuid: Math.random().toString(),
-              });
-              if (recognize.err_no) {
-                message += '识别失败：' + recognize.err_msg;
-              }
-              else {
-                message += recognize.result[0];
-              }
-            }
             files.push(temp.path);
             break;
           }
@@ -610,22 +585,6 @@ export default class ForwardService {
         await fsP.writeFile(temp.path, await message.downloadMedia({}));
         const bufSilk = await silk.encode(temp.path);
         chain.push(segment.record(bufSilk));
-        if (this.speechClient) {
-          const pcmPath = await createTempFile({ postfix: '.pcm' });
-          tempFiles.push(pcmPath);
-          await silk.conventOggToPcm16000(temp.path, pcmPath.path);
-          const pcm = await fsP.readFile(pcmPath.path);
-          const recognize = await this.speechClient.recognize(pcm, 'pcm', 16000, {
-            dev_pid: 1537,
-            cuid: Math.random().toString(),
-          });
-          if (recognize.err_no) {
-            chain.push('识别失败：' + recognize.err_msg);
-          }
-          else {
-            chain.push('[语音] ', recognize.result[0]);
-          }
-        }
         brief += '[语音]';
       }
       else if (message.poll) {

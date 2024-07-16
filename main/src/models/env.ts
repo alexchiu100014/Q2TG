@@ -38,10 +38,6 @@ const configParsed = z.object({
   ZINC_USERNAME: z.string().optional(),
   ZINC_PASSWORD: z.string().optional(),
 
-  BAIDU_APP_ID: z.string().optional(),
-  BAIDU_API_KEY: z.string().optional(),
-  BAIDU_SECRET_KEY: z.string().optional(),
-
   DISABLE_FILE_UPLOAD_TIP: z.string().transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())).default('false'),
 
   LISTEN_PORT: z.string().regex(/^\d+$/).transform(Number).default('8080'),
