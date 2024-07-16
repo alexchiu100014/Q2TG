@@ -54,6 +54,9 @@ export const messageElemToNapCatSendable = async (elem: SendableElem): Promise<{
         });
         elem.file = file.path;
       }
+      if (!/^(https?|file):\/\//.test(elem.file) && elem.file.startsWith('/')) {
+        elem.file = `file://${elem.file}`;
+      }
       return {
         elem: {
           type: elem.type,
