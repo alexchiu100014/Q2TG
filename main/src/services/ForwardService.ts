@@ -644,15 +644,25 @@ export default class ForwardService {
           chain.push('\n');
           if ('gid' in pair.qq) {
             useText('文件正在上传中…');
-            pair.qq.fs.upload(await message.downloadMedia({}), '/',
+            const file = await createTempFile();
+            tempFiles.push(file);
+            await message.downloadMedia({ outputFile: file.path });
+            pair.qq.fs.upload(file.path, '/',
               fileNameAttribute ? fileNameAttribute.fileName : 'file')
-              .catch(err => pair.qq.sendMsg(`上传失败：\n${err.message}`));
+              .catch(err => {
+                message.reply({ message: `上传失败：\n${err.message}` });
+                posthog.capture('上传群文件失败', { error: err });
+              })
+              .finally(() => file.cleanup());
           }
           else if (pair.qq instanceof OicqFriend) {
             useText('文件正在上传中…');
             pair.qq.sendFile(await message.downloadMedia({}),
               fileNameAttribute ? fileNameAttribute.fileName : 'file')
-              .catch(err => pair.qq.sendMsg(`上传失败：\n${err.message}`));
+              .catch(err => {
+                message.reply({ message: `上传失败：\n${err.message}` });
+                posthog.capture('上传好友文件失败', { error: err });
+              });
           }
           else {
             await message.reply({
