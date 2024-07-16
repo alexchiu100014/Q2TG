@@ -62,7 +62,7 @@ export const messageElemToNapCatSendable = async (elem: SendableElem): Promise<{
           type: elem.type,
           data: {
             file: elem.file,
-            summary: elem.type,
+            summary: 'Q2TG ' + elem.type,
             name: elem.type,
           },
         } as any,
