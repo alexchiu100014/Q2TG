@@ -17,8 +17,7 @@ import db from '../models/db';
 import { Button } from 'telegram/tl/custom/button';
 import { SendMessageParams } from 'telegram/client/messages';
 import { Api } from 'telegram';
-import { file as createTempFile, FileResult } from 'tmp-promise';
-import fsP from 'fs/promises';
+import { file as createTempFileBase, FileResult } from 'tmp-promise';
 import eviltransform from 'eviltransform';
 import silk from '../encoding/silk';
 import axios from 'axios';
@@ -41,9 +40,15 @@ import BigInteger from 'big-integer';
 import pastebin from '../utils/pastebin';
 import { MessageEvent, QQClient, Sendable, SendableElem } from '../client/QQClient';
 import posthog from '../models/posthog';
+import { NapCatClient } from '../client/NapCatClient';
 
 const NOT_CHAINABLE_ELEMENTS = ['flash', 'record', 'video', 'location', 'share', 'json', 'xml', 'poke'];
 const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/apng', 'image/webp', 'image/gif', 'image/bmp', 'image/tiff', 'image/x-icon', 'image/avif', 'image/heic', 'image/heif'];
+
+const createTempFile = (options: Parameters<typeof createTempFileBase>[0] = {}) => createTempFileBase({
+  tmpdir: env.CACHE_DIR,
+  ...options,
+});
 
 // noinspection FallThroughInSwitchStatementJS
 export default class ForwardService {
@@ -519,7 +524,7 @@ export default class ForwardService {
         messageHeader = emoji.tgColor((message.sender as Api.User)?.color?.color || message.senderId.toJSNumber()) + messageHeader;
       }
 
-      const useImage = (image: Buffer, asface: boolean) => {
+      const useImage = (image: string | Buffer, asface: boolean) => {
         chain.push({
           type: 'image',
           file: image,
@@ -557,12 +562,12 @@ export default class ForwardService {
         else if (file.mimeType === 'video/webm' || message.gif) {
           // 把 webm 转换成 gif
           const convertedPath = await convert.webm2gif(message.document.id.toString(16), () => message.downloadMedia({}));
-          useImage(await fsP.readFile(convertedPath), true);
+          useImage(convertedPath, true);
         }
         else {
           const temp = await createTempFile();
           tempFiles.push(temp);
-          await fsP.writeFile(temp.path, await message.downloadMedia({}));
+          await message.downloadMedia({ outputFile: temp.path });
           chain.push(segment.video(temp.path));
         }
         brief += '[视频]';
@@ -575,16 +580,21 @@ export default class ForwardService {
         }
         else {
           const gifPath = await convert.tgs2gif(message.sticker.id.toString(16), () => message.downloadMedia({}));
-          useImage(await fsP.readFile(gifPath), true);
+          useImage(gifPath, true);
         }
         brief += '[贴纸]';
       }
       else if (message.voice) {
         const temp = await createTempFile();
         tempFiles.push(temp);
-        await fsP.writeFile(temp.path, await message.downloadMedia({}));
-        const bufSilk = await silk.encode(temp.path);
-        chain.push(segment.record(bufSilk));
+        await message.downloadMedia({ outputFile: temp.path });
+        if (this.oicq instanceof OicqClient) {
+          const bufSilk = await silk.encode(temp.path);
+          chain.push(segment.record(bufSilk));
+        }
+        else if (this.oicq instanceof NapCatClient) {
+          chain.push(segment.record(temp.path));
+        }
         brief += '[语音]';
       }
       else if (message.poll) {
@@ -643,6 +653,11 @@ export default class ForwardService {
             pair.qq.sendFile(await message.downloadMedia({}),
               fileNameAttribute ? fileNameAttribute.fileName : 'file')
               .catch(err => pair.qq.sendMsg(`上传失败：\n${err.message}`));
+          }
+          else {
+            await message.reply({
+              message: '当前配置不支持好友文件',
+            });
           }
         }
         brief += '[文件]';

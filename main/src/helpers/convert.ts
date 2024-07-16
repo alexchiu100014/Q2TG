@@ -1,4 +1,3 @@
-import dataPath from './dataPath';
 import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
@@ -6,8 +5,9 @@ import { file as createTempFile } from 'tmp-promise';
 import fsP from 'fs/promises';
 import convertWithFfmpeg from '../encoding/convertWithFfmpeg';
 import tgsToGif from '../encoding/tgsToGif';
+import env from '../models/env';
 
-const CACHE_PATH = dataPath('cache');
+const CACHE_PATH = env.CACHE_DIR;
 fs.mkdirSync(CACHE_PATH, { recursive: true });
 
 // 首先查找缓存，要是缓存中没有的话执行第二个参数的方法转换到缓存的文件

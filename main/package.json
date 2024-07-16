@@ -23,6 +23,7 @@
     "@types/node": "^20.14.10",
     "@types/probe-image-size": "^7.2.4",
     "@types/prompts": "^2.4.9",
+    "@types/tmp": "^0.2.6",
     "node-napcat-ts": "^0.1.2",
     "tsx": "^4.16.2"
   },
