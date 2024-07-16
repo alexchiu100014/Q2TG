@@ -41,6 +41,7 @@ import pastebin from '../utils/pastebin';
 import { MessageEvent, QQClient, Sendable, SendableElem } from '../client/QQClient';
 import posthog from '../models/posthog';
 import { NapCatClient } from '../client/NapCatClient';
+import fsP from 'fs/promises';
 
 const NOT_CHAINABLE_ELEMENTS = ['flash', 'record', 'video', 'location', 'share', 'json', 'xml', 'poke'];
 const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/apng', 'image/webp', 'image/gif', 'image/bmp', 'image/tiff', 'image/x-icon', 'image/avif', 'image/heic', 'image/heif'];
@@ -275,6 +276,14 @@ export default class ForwardService {
                   url = url.split('?fname=')[0];
                   // 防止 Request path contains unescaped characters
                 }
+                else if (url.startsWith('/')) {
+                  // 发完清理文件
+                  tempFiles.push({
+                    path: url,
+                    fd: 0,
+                    cleanup: () => fsP.unlink(url),
+                  });
+                }
                 this.log.info('正在发送媒体，长度', helper.hSize(elem.size));
                 try {
                   const file = await helper.downloadToCustomFile(url, !(message || messageHeader), elem.name);
@@ -289,7 +298,7 @@ export default class ForwardService {
                   this.log.error('下载媒体失败', e);
                   posthog.capture('下载媒体失败', { error: e });
                   // 下载失败让 Telegram 服务器下载
-                  if (/https?:\/\//.test(url)) {
+                  if (/^https?:\/\//.test(url)) {
                     files.push(url);
                   }
                   else {
@@ -314,15 +323,22 @@ export default class ForwardService {
             break;
           }
           case 'record': {
-            const temp = await createTempFile({ postfix: '.ogg' });
-            tempFiles.push(temp);
             url = elem.url;
             if (!url && this.oicq instanceof OicqClient) {
               const refetchMessage = await this.oicq.oicq.getMsg(event.messageId);
               url = (refetchMessage.message.find(it => it.type === 'record') as PttElem).url;
             }
-            await silk.decode(await fetchFile(url), temp.path);
-            files.push(temp.path);
+            if (url) {
+              const temp = await createTempFile({ postfix: '.ogg' });
+              tempFiles.push(temp);
+              await silk.decode(await fetchFile(url), temp.path);
+              files.push(temp.path);
+            }
+            else {
+              // 得处理 /root/.config/QQ/nt_qq_6f9659ab3c6cc5913ddda6cc8700f48f/nt_data/Ptt/2024-07/Ori/8b0da2f31eeae8231a17cce76ebe43d2.amr 这样的路径，把 /root/.config/QQ/nt_qq_6f9659ab3c6cc5913ddda6cc8700f48f volume 出来
+              // 目前思路是 docker exec 进去 cp 出来
+              message += '<i>[语音]</i>';
+            }
             break;
           }
           case 'share': {

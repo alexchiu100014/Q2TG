@@ -4,6 +4,7 @@ volumes:
   postgresql:
   zinc-data:
   q2tg:
+  cache:
 
 services:
   # 如果有现成的 Postgresql 实例，可以删除这一小节
@@ -16,6 +17,7 @@ services:
       POSTGRES_PASSWORD: password
     volumes:
       - postgresql:/var/lib/postgresql/data
+
   zinclabs:
     volumes:
       - 'zinc-data:/data'
@@ -28,6 +30,7 @@ services:
     container_name: zincsearch
     image: 'public.ecr.aws/zinclabs/zinc:latest'
     restart: unless-stopped
+
   sign:
     image: xzhouqd/qsign:core-1.1.9
     restart: unless-stopped
@@ -35,8 +38,9 @@ services:
       # 需要与下方的 SIGN_VER 同步
       # 配置请参考 https://hub.docker.com/r/xzhouqd/qsign
       - BASE_PATH=/srv/qsign/qsign/txlib/8.9.71
+
   q2tg:
-    image: ghcr.io/clansty/q2tg:rainbowcat
+    image: ghcr.io/clansty/q2tg:next
     restart: unless-stopped
     depends_on:
       - postgres
@@ -47,6 +51,7 @@ services:
       - 8080:8080
     volumes:
       - q2tg:/app/data
+      - cache:/root/.config/QQ/NapCat/temp
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - TG_API_ID=
