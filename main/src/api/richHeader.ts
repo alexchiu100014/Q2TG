@@ -5,6 +5,7 @@ import fs from 'fs';
 import { Group as OicqGroup, Member as OicqMember } from '@icqqjs/icqq';
 import { format } from 'date-and-time';
 import { Group, GroupMemberInfo } from '../client/QQClient';
+import { NapCatGroupMember } from '../client/NapCatClient';
 
 const template = ejs.compile(fs.readFileSync('./assets/richHeader.ejs', 'utf-8'));
 
@@ -27,6 +28,9 @@ export default ((fastify, opts, done) => {
     let memberInfo: GroupMemberInfo;
     if (member instanceof OicqMember) {
       memberInfo = member.info;
+    }
+    else if (member instanceof NapCatGroupMember) {
+      memberInfo = await member.renew();
     }
     if (!memberInfo) {
       memberInfo = {} as any;
