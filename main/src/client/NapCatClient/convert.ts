@@ -77,15 +77,15 @@ export const messageElemToNapCatSendable = async (elem: SendableElem): Promise<{
 export const napCatReceiveToMessageElem = (data: Receive[keyof Receive]): MessageElem | Receive['forward'] => {
   switch (data.type) {
     case 'text':
-      return {
-        ...data.data,
-        type: data.type,
-      };
     case 'face':
+    case 'image':
+    case 'record':
+    case 'json':
+    case 'markdown':
       return {
         ...data.data,
         type: data.type,
-      };
+      } as any;
     case 'mface':
       return {
         type: 'image',
@@ -93,19 +93,10 @@ export const napCatReceiveToMessageElem = (data: Receive[keyof Receive]): Messag
         file: data.data.url,
       };
     case 'at':
+      const qqNum = Number(data.data.qq);
       return {
-        ...data.data,
         type: data.type,
-      };
-    case 'image':
-      return {
-        ...data.data,
-        type: data.type,
-      };
-    case 'record':
-      return {
-        ...data.data,
-        type: data.type,
+        qq: isNaN(qqNum) ? data.data.qq : qqNum,
       };
     case 'file':
       return {
@@ -124,20 +115,10 @@ export const napCatReceiveToMessageElem = (data: Receive[keyof Receive]): Messag
         fid: data.data.url,
         file: data.data.url,
       };
-    case 'json':
-      return {
-        ...data.data,
-        type: data.type,
-      };
     case 'dice':
     case 'rps':
       return {
         id: data.data.result,
-        type: data.type,
-      };
-    case 'markdown':
-      return {
-        ...data.data,
         type: data.type,
       };
     case 'forward':

@@ -10,8 +10,6 @@ import {
 import { fetchFile, getBigFaceUrl, getImageUrlByMd5, isContainsUrl } from '../utils/urls';
 import { ButtonLike, FileLike } from 'telegram/define';
 import { getLogger, Logger } from 'log4js';
-import path from 'path';
-import exts from '../constants/exts';
 import helper from '../helpers/forwardHelper';
 import db from '../models/db';
 import { Button } from 'telegram/tl/custom/button';
@@ -38,7 +36,7 @@ import { CustomFile } from 'telegram/client/uploads';
 import flags from '../constants/flags';
 import BigInteger from 'big-integer';
 import pastebin from '../utils/pastebin';
-import { MessageEvent, QQClient, Sendable, SendableElem } from '../client/QQClient';
+import { Group, MessageEvent, QQClient, Sendable, SendableElem } from '../client/QQClient';
 import posthog from '../models/posthog';
 import { NapCatClient } from '../client/NapCatClient';
 import fsP from 'fs/promises';
@@ -204,6 +202,16 @@ export default class ForwardService {
             if (env.WEB_ENDPOINT && typeof elem.qq === 'number') {
               message += `<a href="${helper.generateRichHeaderUrl(pair.apiKey, elem.qq)}">[<i>${helper.htmlEscape(elem.text)}</i>]</a>`;
               break;
+            }
+            if (!elem.text) {
+              if (isNaN(elem.qq as number)) {
+                elem.text = `@${elem.qq === 'all' ? '全体成员' : elem.qq}`;
+              }
+              else {
+                const member = (pair.qq as Group).pickMember(elem.qq as number);
+                const info = await member.renew();
+                elem.text = `@${info.card || info.nickname}`;
+              }
             }
           }
           case 'face':
