@@ -27,7 +27,7 @@ import OicqClient from './client/OicqClient';
     posthog.capture('UncaughtException', { error });
   });
 
-  await api.startListening();
+  api.startListening();
 
   const instanceEntries = await db.instance.findMany();
 

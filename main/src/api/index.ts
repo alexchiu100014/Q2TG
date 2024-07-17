@@ -1,39 +1,42 @@
 import { getLogger } from 'log4js';
-import Fastify from 'fastify';
-import FastifyProxy from '@fastify/http-proxy';
-import FastifyStatic from '@fastify/static';
 import env from '../models/env';
 import richHeader from './richHeader';
 import telegramAvatar from './telegramAvatar';
+import '@bogeychan/elysia-polyfills/node/index.js';
+import { Elysia } from 'elysia';
+import { staticPlugin } from '@elysiajs/static';
 
 const log = getLogger('Web Api');
-const fastify = Fastify();
 
-fastify.get('/', async (request, reply) => {
-  return { hello: 'Q2TG' };
-});
-
-fastify.register(richHeader, { prefix: '/richHeader' });
-fastify.register(telegramAvatar, { prefix: '/telegramAvatar' });
+let app = new Elysia()
+  .get('/', () => {
+    return { hello: 'Q2TG' };
+  })
+  .mount('/telegramAvatar', telegramAvatar)
+  .mount('/richHeader', richHeader);
 
 if (env.UI_PROXY) {
-  fastify.register(FastifyProxy, {
-    upstream: env.UI_PROXY,
-    prefix: '/ui',
-    rewritePrefix: '/ui',
-    websocket: true,
+  app = app.mount('/ui', (req) => {
+    const url = new URL(req.url);
+    const baseUrl = new URL(env.UI_PROXY);
+    url.hostname = baseUrl.hostname;
+    url.port = baseUrl.port;
+    url.protocol = baseUrl.protocol;
+    url.pathname = '/ui' + url.pathname;
+    return fetch(url.toString(), req);
   });
 }
 else if (env.UI_PATH) {
-  fastify.register(FastifyStatic, {
-    root: env.UI_PATH,
+  app = app.use(staticPlugin({
     prefix: '/ui',
-  });
+    assets: env.UI_PATH,
+    indexHTML: true,
+  }));
 }
 
 export default {
-  async startListening() {
-    await fastify.listen({ port: env.LISTEN_PORT, host: '0.0.0.0' });
+  startListening() {
+    app.listen(env.LISTEN_PORT);
     log.info('Listening on', env.LISTEN_PORT);
   },
 };

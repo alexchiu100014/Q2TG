@@ -1,4 +1,3 @@
-import { FastifyPluginCallback } from 'fastify';
 import Instance from '../models/Instance';
 import convert from '../helpers/convert';
 import Telegram from '../client/Telegram';
@@ -6,6 +5,7 @@ import { Api } from 'telegram';
 import BigInteger from 'big-integer';
 import { getLogger } from 'log4js';
 import fs from 'fs';
+import { Elysia } from 'elysia';
 
 const log = getLogger('telegramAvatar');
 
@@ -32,21 +32,16 @@ const getUserAvatarPath = async (tgBot: Telegram, userId: string) => {
   return await convert.cachedBuffer(fileId.toString(16) + '.jpg', () => tgBot.downloadEntityPhoto(userId));
 };
 
-export default ((fastify, opts, done) => {
-  fastify.get<{
-    Params: { instanceId: string, userId: string }
-  }>('/:instanceId/:userId', async (request, reply) => {
-    log.debug('请求头像', request.params.userId);
-    const instance = Instance.instances.find(it => it.id.toString() === request.params.instanceId);
-    const avatar = await getUserAvatarPath(instance.tgBot, request.params.userId);
+export default new Elysia()
+  .get('/:instanceId/:userId', async ({ params, error, set }) => {
+    log.debug('请求头像', params.userId);
+    const instance = Instance.instances.find(it => it.id.toString() === params.instanceId);
+    const avatar = await getUserAvatarPath(instance.tgBot, params.userId);
 
     if (!avatar) {
-      reply.code(404);
-      return;
+      return error(404);
     }
-    reply.type('image/jpeg');
+
+    set.headers['content-type'] = 'image/jpeg';
     return fs.createReadStream(avatar);
   });
-
-  done();
-}) as FastifyPluginCallback;
