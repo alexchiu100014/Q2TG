@@ -63,8 +63,6 @@ FROM base
 COPY --from=tgs-to-gif-build /app/tgs_to_gif /usr/local/bin/tgs_to_gif
 ENV TGS_TO_GIF=/usr/local/bin/tgs_to_gif
 
-COPY main/assets /app/assets
-
 COPY --from=build /app/deploy /app
 COPY main/prisma /app/
 RUN pnpm exec prisma generate
