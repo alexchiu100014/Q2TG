@@ -99,77 +99,65 @@ export default class SetupController {
       });
     }
     else if (env.NAPCAT_WS_URL && this.instance.id === 0) {
-      try {
-        const dbQQBot = await db.qqBot.create({
-          data: {
-            type: 'napcat',
-            wsUrl: env.NAPCAT_WS_URL,
-          },
-        });
-        this.oicq = await QQClient.create({
-          ...dbQQBot,
-          type: 'napcat',
-        });
-        this.instance.qqBotId = dbQQBot.id;
-        await this.setupService.informOwner(`连接 NapCat 成功`);
-      }
-      catch (e){
-        this.log.error('连接 NapCat 失败', e);
-        posthog.capture('连接 NapCat 失败', { error: e });
-        await this.setupService.informOwner(`连接 NapCat 失败\n${e.message}`);
-        this.isInProgress = false;
-        throw e;
-      }
+      await this.tryConnectNapCat(env.NAPCAT_WS_URL);
     }
-    else
-      try {
-        let uin = NaN;
-        while (isNaN(uin)) {
-          uin = Number(await this.setupService.waitForOwnerInput('请输入要登录 QQ 号'));
+    else {
+      let uin = NaN, wsUrl = '';
+      while (isNaN(uin) && !wsUrl) {
+        const input = await this.setupService.waitForOwnerInput('请输入要登录 QQ 号');
+        uin = Number(input);
+        if (/wss?:\/\//.test(input)) {
+          wsUrl = input;
         }
-        const platformText = await this.setupService.waitForOwnerInput('请选择登录协议', [
-          [Button.text('安卓手机', true, true)],
-          [Button.text('安卓平板', true, true)],
-          [Button.text('iPad', true, true)],
-        ]);
-        const platform = setupHelper.convertTextToPlatform(platformText);
-
-        let signApi: string;
-
-        if (!env.SIGN_API) {
-          signApi = await this.setupService.waitForOwnerInput('请输入签名服务器地址', [
-            [Button.text('不需要签名服务器', true, true)],
-          ]);
-          signApi = setupHelper.checkSignApiAddress(signApi);
-        }
-
-        let signVer: string;
-
-        if (signApi && !env.SIGN_VER) {
-          signVer = await this.setupService.waitForOwnerInput('请输入签名服务器版本', [
-            [Button.text('8.9.63', true, true),
-              Button.text('8.9.68', true, true)],
-            [Button.text('8.9.70', true, true),
-              Button.text('8.9.71', true, true),
-              Button.text('8.9.73', true, true)],
-            [Button.text('8.9.78', true, true),
-              Button.text('8.9.83', true, true)],
-          ]);
-        }
-
-        let password = await this.setupService.waitForOwnerInput('请输入密码', undefined, true);
-        password = md5Hex(password);
-        this.oicq = await this.setupService.createOicq(uin, password, platform, signApi, signVer);
-        this.instance.qqBotId = this.oicq.id;
-        await this.setupService.informOwner(`登录成功`);
       }
-      catch (e) {
-        this.log.error('登录 OICQ 失败', e);
-        posthog.capture('登录 OICQ 失败', { error: e });
-        await this.setupService.informOwner(`登录失败\n${e.message}`);
-        this.isInProgress = false;
-        throw e;
-      }
+      if (uin)
+        try {
+          const platformText = await this.setupService.waitForOwnerInput('请选择登录协议', [
+            [Button.text('安卓手机', true, true)],
+            [Button.text('安卓平板', true, true)],
+            [Button.text('iPad', true, true)],
+          ]);
+          const platform = setupHelper.convertTextToPlatform(platformText);
+
+          let signApi: string;
+
+          if (!env.SIGN_API) {
+            signApi = await this.setupService.waitForOwnerInput('请输入签名服务器地址', [
+              [Button.text('不需要签名服务器', true, true)],
+            ]);
+            signApi = setupHelper.checkSignApiAddress(signApi);
+          }
+
+          let signVer: string;
+
+          if (signApi && !env.SIGN_VER) {
+            signVer = await this.setupService.waitForOwnerInput('请输入签名服务器版本', [
+              [Button.text('8.9.63', true, true),
+                Button.text('8.9.68', true, true)],
+              [Button.text('8.9.70', true, true),
+                Button.text('8.9.71', true, true),
+                Button.text('8.9.73', true, true)],
+              [Button.text('8.9.78', true, true),
+                Button.text('8.9.83', true, true)],
+            ]);
+          }
+
+          let password = await this.setupService.waitForOwnerInput('请输入密码', undefined, true);
+          password = md5Hex(password);
+          this.oicq = await this.setupService.createOicq(uin, password, platform, signApi, signVer);
+          this.instance.qqBotId = this.oicq.id;
+          await this.setupService.informOwner(`登录成功`);
+        }
+        catch (e) {
+          this.log.error('登录 OICQ 失败', e);
+          posthog.capture('登录 OICQ 失败', { error: e });
+          await this.setupService.informOwner(`登录失败\n${e.message}`);
+          this.isInProgress = false;
+          throw e;
+        }
+      else
+        await this.tryConnectNapCat(wsUrl);
+    }
     // 登录 tg UserBot
     if (this.instance.userSessionId) {
       await this.setupService.informOwner('userSessionId 已经存在，跳过');
@@ -190,6 +178,30 @@ export default class SetupController {
         this.isInProgress = false;
         throw e;
       }
+  }
+
+  private async tryConnectNapCat(wsUrl: string) {
+    try {
+      const dbQQBot = await db.qqBot.create({
+        data: {
+          type: 'napcat',
+          wsUrl,
+        },
+      });
+      this.oicq = await QQClient.create({
+        ...dbQQBot,
+        type: 'napcat',
+      });
+      this.instance.qqBotId = dbQQBot.id;
+      await this.setupService.informOwner(`连接 NapCat 成功`);
+    }
+    catch (e) {
+      this.log.error('连接 NapCat 失败', e);
+      posthog.capture('连接 NapCat 失败', { error: e });
+      await this.setupService.informOwner(`连接 NapCat 失败\n${e.message}`);
+      this.isInProgress = false;
+      throw e;
+    }
   }
 
   private async finishSetup() {
