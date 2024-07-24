@@ -41,7 +41,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 ADD https://github.com/p-ranav/argparse.git#v3.0 /argparse
 WORKDIR /argparse/build
-RUN cmake -DARGPARSE_BUILD_SAMPLES=on -DARGPARSE_BUILD_TESTS=on .. && make && make install
+RUN cmake -DARGPARSE_BUILD_SAMPLES=off -DARGPARSE_BUILD_TESTS=off .. && make && make install
 
 ADD https://github.com/ed-asriyan/lottie-converter.git#f626548ced4492235b535552e2449be004a3a435 /app
 WORKDIR /app

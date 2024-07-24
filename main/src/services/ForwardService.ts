@@ -222,7 +222,7 @@ export default class ForwardService {
               break;
             }
           case 'sface': {
-            if (!elem.text) {
+            if (typeof elem.text === 'string') {
               elem.text = '表情:' + elem.id;
             }
             message += `[<i>${helper.htmlEscape(elem.text)}</i>]`;
@@ -520,9 +520,17 @@ export default class ForwardService {
       this.log.error('从 QQ 到 TG 的消息转发失败', e);
       posthog.capture('从 QQ 到 TG 的消息转发失败', { error: e });
       let pbUrl: string;
+      let error = e;
+      if (JSON.stringify(error) === '{}') {
+        error = {
+          message: e.message,
+          stack: e.stack,
+          str: e.toString(),
+        };
+      }
       try {
         pbUrl = await pastebin.upload(JSON.stringify({
-          error: e,
+          error,
           event,
         }));
       }
