@@ -125,7 +125,8 @@ export default class ForwardService {
         files: FileLike[] = [],
         buttons: ButtonLike[] = [],
         replyTo = 0,
-        forceDocument = false;
+        forceDocument = false,
+        linkPreview = true;
       let messageHeader = '', sender = '';
       if (!event.dm) {
         // 产生头部，这和工作模式没有关系
@@ -204,10 +205,6 @@ export default class ForwardService {
           case 'at': {
             if (event.replyTo?.fromId === elem.qq || event.replyTo?.fromId === this.oicq.uin)
               break;
-            if (env.WEB_ENDPOINT && typeof elem.qq === 'number') {
-              message += `<a href="${helper.generateRichHeaderUrl(pair.apiKey, elem.qq)}">[<i>${helper.htmlEscape(elem.text)}</i>]</a>`;
-              break;
-            }
             if (!elem.text) {
               if (isNaN(elem.qq as number)) {
                 elem.text = `@${elem.qq === 'all' ? '全体成员' : elem.qq}`;
@@ -217,6 +214,11 @@ export default class ForwardService {
                 const info = await member.renew();
                 elem.text = `@${info.card || info.nickname}`;
               }
+            }
+            if (env.WEB_ENDPOINT && typeof elem.qq === 'number') {
+              message += `<a href="${helper.generateRichHeaderUrl(pair.apiKey, elem.qq)}">[<i>${helper.htmlEscape(elem.text)}</i>]</a>`;
+              linkPreview = false;
+              break;
             }
           }
           case 'face':
@@ -450,6 +452,7 @@ export default class ForwardService {
       // 发送消息
       const messageToSend: SendMessageParams = {
         forceDocument: forceDocument as any, // 恼
+        linkPreview,
       };
       if (files.length === 1) {
         messageToSend.file = files[0];
