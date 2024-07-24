@@ -102,11 +102,6 @@ export default class InChatCommandsController {
           message: '设置' + (result ? '成功' : '失败'),
         });
         return true;
-      case '/search':
-        await message.reply({
-          message: await this.service.search(messageParts, pair),
-        });
-        return true;
     }
   };
 }

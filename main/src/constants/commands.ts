@@ -58,10 +58,6 @@ const inChatCommands = [
     description: '查看本群或选定消息的详情',
   }),
   new Api.BotCommand({
-    command: 'search',
-    description: '搜索消息',
-  }),
-  new Api.BotCommand({
     command: 'q',
     description: '生成 QuotLy 图片',
   }),

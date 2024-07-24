@@ -2,7 +2,6 @@ version: "3.8"
 
 volumes:
   postgresql:
-  zinc-data:
   q2tg:
   cache:
 
@@ -18,19 +17,6 @@ services:
     volumes:
       - postgresql:/var/lib/postgresql/data
 
-  zinclabs:
-    volumes:
-      - 'zinc-data:/data'
-    environment:
-      - ZINC_DATA_PATH=/data
-      - ZINC_FIRST_ADMIN_USER=admin
-      - ZINC_FIRST_ADMIN_PASSWORD=password
-      - ZINC_PLUGIN_GSE_ENABLE=true
-      - ZINC_PLUGIN_GSE_DICT_EMBED=big
-    container_name: zincsearch
-    image: 'public.ecr.aws/zinclabs/zinc:latest'
-    restart: unless-stopped
-
   sign:
     image: xzhouqd/qsign:core-1.1.9
     restart: unless-stopped
@@ -44,7 +30,6 @@ services:
     restart: unless-stopped
     depends_on:
       - postgres
-      - zinclabs
       - sign
     ports:
       # 如果要使用 RICH_HEADER 需要将端口发布到公网
@@ -60,9 +45,6 @@ services:
       - DATABASE_URL=postgres://user:password@postgres/db_name
       - CRV_API=
       - CRV_KEY=
-      - ZINC_URL=http://zinclabs:4080
-      - ZINC_USERNAME=admin
-      - ZINC_PASSWORD=password
       - SIGN_API=http://sign:8080/sign?key=114514
       - SIGN_VER=8.9.71 # 与上方 sign 容器的配置同步
       - TG_CONNECTION=tcp # 连接 Telegram 的方式，也可以改成 websocket

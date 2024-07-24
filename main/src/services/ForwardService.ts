@@ -28,7 +28,6 @@ import _ from 'lodash';
 import emoji from '../constants/emoji';
 import convert from '../helpers/convert';
 import { QQMessageSent } from '../types/definitions';
-import ZincSearch from 'zincsearch-node';
 import Docker from 'dockerode';
 import ReplyKeyboardHide = Api.ReplyKeyboardHide;
 import env from '../models/env';
@@ -52,20 +51,12 @@ const createTempFile = (options: Parameters<typeof createTempFileBase>[0] = {}) 
 // noinspection FallThroughInSwitchStatementJS
 export default class ForwardService {
   private readonly log: Logger;
-  private readonly zincSearch: ZincSearch;
   private readonly restartSignCallbackHandle?: Buffer;
 
   constructor(private readonly instance: Instance,
               private readonly tgBot: Telegram,
               private readonly oicq: QQClient) {
     this.log = getLogger(`ForwardService - ${instance.id}`);
-    if (env.ZINC_URL) {
-      this.zincSearch = new ZincSearch({
-        url: env.ZINC_URL,
-        user: env.ZINC_USERNAME,
-        password: env.ZINC_PASSWORD,
-      });
-    }
     if (oicq instanceof OicqClient && oicq.signDockerId) {
       const socket = new Docker({ socketPath: '/var/run/docker.sock' });
       const container = socket.getContainer(oicq.signDockerId);
@@ -903,50 +894,5 @@ export default class ForwardService {
       catch {
       }
     }
-  }
-
-  public async addToZinc(pairId: number, tgMsgId: number, data: {
-    text: string,
-    nick: string,
-  }) {
-    if (!this.zincSearch) return;
-    const existsReq = await fetch(env.ZINC_URL + `/api/index/q2tg-${pairId}`, {
-      method: 'HEAD',
-      headers: {
-        Authorization: 'Basic ' + Buffer.from(env.ZINC_USERNAME + ':' + env.ZINC_PASSWORD).toString('base64'),
-      },
-    });
-    if (existsReq.status === 404) {
-      await this.zincSearch.indices.create({
-        name: `q2tg-${pairId}`,
-        mappings: {
-          properties: {
-            nick: {
-              type: 'text',
-              index: true,
-              store: false,
-              aggregatable: false,
-              highlightable: true,
-              analyzer: 'gse_search',
-              search_analyzer: 'gse_standard',
-            },
-            text: {
-              type: 'text',
-              index: true,
-              store: false,
-              aggregatable: false,
-              highlightable: true,
-              analyzer: 'gse_search',
-              search_analyzer: 'gse_standard',
-            },
-          },
-        },
-      });
-    }
-    await this.zincSearch.document.createOrUpdate({
-      id: tgMsgId.toString(),
-      index: `q2tg-${pairId}`,
-      document: data,
-    });
   }
 }

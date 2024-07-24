@@ -89,10 +89,6 @@ export default class ForwardController {
           },
         });
       }
-      await this.forwardService.addToZinc(pair.dbId, tgMessage.id, {
-        text: event.brief,
-        nick: event.from.name,
-      });
     }
     catch (e) {
       this.log.error('处理 QQ 消息时遇到问题', e);
@@ -135,10 +131,6 @@ export default class ForwardController {
               nick: helper.getUserDisplayName(message.sender),
               tgSenderId: BigInt((message.senderId || message.sender?.id).toString()),
             },
-          });
-          await this.forwardService.addToZinc(pair.dbId, message.id, {
-            text: qqMessageSent.brief,
-            nick: helper.getUserDisplayName(message.sender),
           });
         }
       }

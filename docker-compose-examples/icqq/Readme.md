@@ -37,7 +37,6 @@ yaml 里面以下两行定义了签名服务器版本
     restart: unless-stopped
     depends_on:
       - postgres
-      - zinclabs
 -     - sign
 ```
 

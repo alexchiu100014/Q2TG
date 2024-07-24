@@ -38,10 +38,6 @@ const configParsed = z.object({
   CRV_VIEWER_APP: z.string().url().startsWith('https://t.me/').optional(),
   CRV_KEY: z.string().optional(),
 
-  ZINC_URL: z.string().url().optional(),
-  ZINC_USERNAME: z.string().optional(),
-  ZINC_PASSWORD: z.string().optional(),
-
   DISABLE_FILE_UPLOAD_TIP: z.string().transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())).default('false'),
 
   LISTEN_PORT: z.string().regex(/^\d+$/).transform(Number).default('8080'),
