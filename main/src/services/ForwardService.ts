@@ -151,10 +151,10 @@ export default class ForwardService {
           messageHeader = '';
         }
       };
-      const useForward = async (resId: string) => {
+      const useForward = async (resId: string, fileName?: string) => {
         if (env.CRV_API) {
           try {
-            const messages = await pair.qq.getForwardMsg(resId);
+            const messages = await pair.qq.getForwardMsg(resId, fileName);
             message = helper.generateForwardBrief(messages);
             const hash = md5Hex(resId);
             const viewerUrl = env.CRV_VIEWER_APP ? `${env.CRV_VIEWER_APP}?startapp=${hash}` : `${env.CRV_API}/?hash=${hash}`;
@@ -188,7 +188,8 @@ export default class ForwardService {
             type: 'image',
           };
         }
-        let url: string;
+        let url: string,
+          shouldBreak = false;
         switch (elem.type) {
           case 'text': {
             // 判断微信文章
@@ -367,9 +368,10 @@ export default class ForwardService {
                 message = helper.htmlEscape(result.text);
                 break;
               case 'forward':
-                await useForward(result.resId);
+                await useForward(result.resId, result.fileName);
                 break;
             }
+            shouldBreak = true;
             break;
           }
           case 'xml': {
@@ -393,6 +395,7 @@ export default class ForwardService {
                 await useForward(result.resId);
                 break;
             }
+            shouldBreak = true;
             break;
           }
           case 'rps':
@@ -406,6 +409,7 @@ export default class ForwardService {
             message = `[<i>位置</i>] ${helper.htmlEscape(elem.name)}\n${helper.htmlEscape(elem.address)}`;
             break;
         }
+        if (shouldBreak) break;
       }
       message = message.trim();
 

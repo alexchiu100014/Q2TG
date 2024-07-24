@@ -96,7 +96,7 @@ export default {
         const resId = jsonObj.meta?.detail?.resid;
         const fileName = jsonObj.meta?.detail?.uniseq;
         if (resId) {
-          return { type: 'forward', resId };
+          return { type: 'forward', resId, fileName };
         }
         else {
           return { type: 'text', text: '[解析转发消息时出错：没有 resId]' };
