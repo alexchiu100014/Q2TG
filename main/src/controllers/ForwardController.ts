@@ -152,6 +152,7 @@ export default class ForwardController {
   private onQqGroupMemberIncrease = async (event: GroupMemberIncreaseEvent) => {
     try {
       const pair = this.instance.forwardPairs.find(event.chat);
+      if (!pair) return false;
       if ((pair?.flags | this.instance.flags) & flags.DISABLE_JOIN_NOTICE) return false;
       const avatar = await getAvatar(event.userId);
       await pair.tg.sendMessage({
