@@ -9,6 +9,7 @@ import { staticPlugin } from '@elysiajs/static';
 const log = getLogger('Web Api');
 
 let app = new Elysia()
+  .onError(log.error.bind(log))
   .get('/', () => {
     return { hello: 'Q2TG' };
   })
