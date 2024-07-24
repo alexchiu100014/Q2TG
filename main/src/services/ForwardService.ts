@@ -141,7 +141,12 @@ export default class ForwardService {
       const useSticker = (file: FileLike) => {
         files.push(file);
         if (!event.dm) {
-          buttons.push(Button.inline(`${sender}:`));
+          if ((pair.flags | this.instance.flags) & flags.RICH_HEADER && env.WEB_ENDPOINT) {
+            buttons.push(Button.url(`${sender}:`, helper.generateRichHeaderUrl(pair.apiKey, event.from.id, messageHeader)));
+          }
+          else {
+            buttons.push(Button.inline(`${sender}:`));
+          }
           messageHeader = '';
         }
       };

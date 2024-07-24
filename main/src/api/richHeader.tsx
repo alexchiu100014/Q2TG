@@ -49,7 +49,6 @@ export default new Elysia()
     const location = [profile.country, profile.province, profile.city].join(' ').trim();
     const birthday = (profile.birthday || []).some(it => it) && profile.birthday.join('/');
 
-    // language=CSS
     return <html lang="zh">
     <head>
       <meta charset="UTF-8"/>
@@ -63,6 +62,7 @@ export default new Elysia()
       }
       <meta property="og:title" content={memberInfo.card || memberInfo.nickname}/>
       <title>群成员：{memberInfo.card || memberInfo.nickname}</title>
+      {/* language=CSS */}
       <style>{`
         html, body {
           padding: 0;
