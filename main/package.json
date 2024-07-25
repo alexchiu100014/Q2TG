@@ -13,7 +13,6 @@
     "assets"
   ],
   "devDependencies": {
-    "@bogeychan/elysia-polyfills": "^0.6.4",
     "@elysiajs/html": "^1.1.0",
     "@elysiajs/static": "^1.1.0",
     "@kitajs/ts-html-plugin": "^4.0.2",
@@ -51,6 +50,7 @@
     "zod": "^3.23.8"
   },
   "dependencies": {
+    "@bogeychan/elysia-polyfills": "^0.6.4",
     "@icqqjs/icqq": "1.2.4",
     "@prisma/client": "5.16.2",
     "date-and-time": "^3.4.1",
