@@ -6,6 +6,7 @@ import fsP from 'fs/promises';
 import convertWithFfmpeg from '../encoding/convertWithFfmpeg';
 import tgsToGif from '../encoding/tgsToGif';
 import env from '../models/env';
+import { fileTypeFromBuffer } from 'file-type';
 
 const CACHE_PATH = env.CACHE_DIR;
 fs.mkdirSync(CACHE_PATH, { recursive: true });
@@ -63,7 +64,6 @@ const convert = {
     }
     // file not found
     const data = await imageData() as Buffer;
-    const { fileTypeFromBuffer } = await (Function('return import("file-type")')() as Promise<typeof import('file-type')>);
     const fileType = (await fileTypeFromBuffer(data))?.mime || 'image/';
     let pathPngOrig: string, pathGifOrig: string;
     if (fileType.startsWith('image/')) {

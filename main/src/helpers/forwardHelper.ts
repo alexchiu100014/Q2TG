@@ -11,6 +11,7 @@ import { md5Hex } from '../utils/hashing';
 import posthog from '../models/posthog';
 import fs from 'fs';
 import { format } from 'date-and-time';
+import { fileTypeFromBuffer, fileTypeFromFile } from 'file-type';
 
 const log = getLogger('ForwardHelper');
 
@@ -33,7 +34,6 @@ const bufferOrPathCustomFile = (filename: string, bufferOrPath: Buffer | string)
 
 export default {
   async downloadToCustomFile(url: string, allowWebp = false, filename?: string) {
-    const { fileTypeFromBuffer, fileTypeFromFile } = await (Function('return import("file-type")')() as Promise<typeof import('file-type')>);
     // url 可以是一个本地路径
     const file = /^https?:\/\//.test(url) ? await fetchFile(url) : url;
     const isBuffer = Buffer.isBuffer(file);

@@ -25,8 +25,9 @@ COPY main/package.json /app/main/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store,sharing=locked \
     --mount=type=secret,id=npmrc,target=/root/.npmrc \
     pnpm install --frozen-lockfile
-COPY main/src main/tsconfig.json /app/main/
-COPY main/prisma /app/main/
+COPY main/tsconfig.json main/build.ts /app/main/
+COPY main/prisma /app/main/prisma
+COPY main/src /app/main/src
 RUN cd main && pnpm exec prisma generate
 RUN cd main && pnpm run build
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store,sharing=locked \
