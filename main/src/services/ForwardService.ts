@@ -221,7 +221,7 @@ export default class ForwardService {
               break;
             }
           case 'sface': {
-            if (typeof elem.text === 'string') {
+            if (typeof elem.text !== 'string') {
               elem.text = '表情:' + elem.id;
             }
             message += `[<i>${helper.htmlEscape(elem.text)}</i>]`;
