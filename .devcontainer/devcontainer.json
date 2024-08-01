@@ -1,0 +1,6 @@
+{
+  "name": "Dev Container",
+  "dockerFile": "Dockerfile",
+
+  "postCreateCommand": "pnpm install"
+}
