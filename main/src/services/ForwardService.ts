@@ -504,7 +504,7 @@ export default class ForwardService {
           const userMessage = await pair.tgUser.getMessage({
             ids: tgMessage.id,
           });
-          if (['WebPage', 'WebPageNotModified'].includes((userMessage.media as Api.MessageMediaWebPage)?.webpage?.className))
+          if (['WebPage', 'WebPageNotModified'].includes((userMessage?.media as Api.MessageMediaWebPage)?.webpage?.className))
             return;
           // 没有正常获取的话，就加上原先的头部
           this.log.warn('Rich Header 回测错误', messageToSend.file);
