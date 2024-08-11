@@ -186,6 +186,23 @@ export class NapCatClient extends QQClient {
 
   public async getFriendsWithCluster(): Promise<{ name: string; friends: Friend[]; }[]> {
     const data = await this.callApi('get_friends_with_category');
+    if (data[0].buddyList === undefined) {
+      const categories = new Map<number, { name: string; friends: Friend[]; }>();
+      for (const _entry of data) {
+        const it = _entry as any;
+        let category = categories.get(it.categoryId);
+        if (!category) {
+          category = { name: it.categoryName || it.categroyName, friends: [] };
+          categories.set(it.categoryId, category);
+        }
+        category.friends.push(NapCatFriend.createExisted(this, {
+          nickname: it.nick || it.nickname,
+          uid: parseInt(it.uin),
+          remark: it.remark,
+        }));
+      }
+      return Array.from(categories.values());
+    }
     return data.map(it => ({
       name: it.categoryName || (it as any).categroyName, // typo in API
       friends: it.buddyList.map(friend => NapCatFriend.createExisted(this, {
