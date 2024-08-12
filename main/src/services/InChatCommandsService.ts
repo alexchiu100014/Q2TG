@@ -7,7 +7,7 @@ import { Pair } from '../models/Pair';
 import { CustomFile } from 'telegram/client/uploads';
 import { getAvatar } from '../utils/urls';
 import db from '../models/db';
-import { format } from 'date-and-time';
+import { format } from 'date-fns';
 import { QQClient, Group, GroupMemberInfo } from '../client/QQClient';
 import { Member as OicqMember, Group as OicqGroup, Friend as OicqFriend } from '@icqqjs/icqq';
 import posthog from '../models/posthog';
@@ -53,7 +53,7 @@ export default class InChatCommandsService {
             textToSend += `<b>职务：</b>${memberInfo.role === 'owner' ? '群主' : '管理员'}\n`;
           }
         }
-        textToSend += `<b>发送时间：</b>${format(new Date(messageInfo.time * 1000), 'YYYY-M-D hh:mm:ss')}`;
+        textToSend += `<b>发送时间：</b>${format(new Date(messageInfo.time * 1000), 'yyyy-M-d hh:mm:ss')}`;
         const avatar = await getAvatar(Number(messageInfo.qqSenderId));
         if (this.instance.workMode === 'personal') {
           await message.reply({

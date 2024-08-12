@@ -89,14 +89,15 @@ model Message {
 }
 
 model ForwardPair {
-  id          Int           @id @default(autoincrement())
-  qqRoomId    BigInt        @db.BigInt
-  tgChatId    BigInt        @db.BigInt
-  avatarCache AvatarCache[]
-  instanceId  Int           @default(0)
-  instance    Instance      @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  flags       Int           @default(0)
-  apiKey      String        @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id              Int               @id @default(autoincrement())
+  qqRoomId        BigInt            @db.BigInt
+  tgChatId        BigInt            @db.BigInt
+  avatarCache     AvatarCache[]
+  instanceId      Int               @default(0)
+  instance        Instance          @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  flags           Int               @default(0)
+  apiKey          String            @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ForwardMultiple ForwardMultiple[]
 
   @@unique([qqRoomId, instanceId])
   @@unique([tgChatId, instanceId])
@@ -129,4 +130,12 @@ model AvatarCache {
   forwardPair   ForwardPair @relation(fields: [forwardPairId], references: [id], onDelete: Cascade)
   forwardPairId Int         @unique
   hash          Bytes
+}
+
+model ForwardMultiple {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resId      String
+  fileName   String
+  fromPairId Int
+  fromPair   ForwardPair @relation(fields: [fromPairId], references: [id], onDelete: Cascade)
 }

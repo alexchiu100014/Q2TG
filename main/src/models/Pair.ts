@@ -15,6 +15,12 @@ export class Pair {
     return this.apiKeyMap.get(key);
   }
 
+  private static readonly dbIdMap = new Map<number, Pair>();
+
+  public static getByDbId(dbId: number) {
+    return this.dbIdMap.get(dbId);
+  }
+
   // 群成员的 tg 账号对应它对应的 QQ 账号获取到的 Group 对象
   // 只有群组模式有效
   public readonly instanceMapForTg = {} as { [tgUserId: string]: Group };
@@ -30,6 +36,7 @@ export class Pair {
     if (apiKey) {
       Pair.apiKeyMap.set(apiKey, this);
     }
+    Pair.dbIdMap.set(dbId, this);
   }
 
   // 更新 TG 群组的头像和简介

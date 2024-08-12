@@ -143,7 +143,24 @@ export default class ForwardService {
         }
       };
       const useForward = async (resId: string, fileName?: string) => {
-        if (env.CRV_API) {
+        if (env.WEB_ENDPOINT) {
+          try {
+            const messages = await pair.qq.getForwardMsg(resId, fileName);
+            message = helper.generateForwardBrief(messages);
+          }
+          catch (e) {
+            posthog.capture('转发多条消息（无法获取）', { error: e });
+            message = '[<i>转发多条消息（无法获取）</i>]';
+          }
+
+          const dbEntry = await db.forwardMultiple.create({
+            data: { resId, fileName, fromPairId: pair.dbId },
+          });
+          const hash = dbEntry.id;
+          const viewerUrl = env.CRV_VIEWER_APP ? `${env.CRV_VIEWER_APP}?startapp=${hash}` : `${env.WEB_ENDPOINT}/ui/chatRecord?tgWebAppStartParam=${hash}`;
+          buttons.push(Button.url('📃查看', viewerUrl));
+        }
+        else if (env.CRV_API) {
           try {
             const messages = await pair.qq.getForwardMsg(resId, fileName);
             message = helper.generateForwardBrief(messages);

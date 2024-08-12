@@ -10,7 +10,7 @@ import env from '../models/env';
 import { md5Hex } from '../utils/hashing';
 import posthog from '../models/posthog';
 import fs from 'fs';
-import { format } from 'date-and-time';
+import { format } from 'date-fns';
 import { fileTypeFromBuffer, fileTypeFromFile } from 'file-type';
 
 const log = getLogger('ForwardHelper');
@@ -218,7 +218,7 @@ export default {
     const url = new URL(`${env.WEB_ENDPOINT}/richHeader/${apiKey}/${userId}`);
     // 防止群名片刷新慢
     messageHeader && url.searchParams.set('hash', md5Hex(messageHeader).substring(0, 10));
-    url.searchParams.set('date', format(new Date(), 'YYYY-MM-DD'));
+    url.searchParams.set('date', format(new Date(), 'yyyy-MM-dd'));
     return url.toString();
   },
 

@@ -1,6 +1,6 @@
 import { Pair } from '../models/Pair';
 import { Member as OicqMember } from '@icqqjs/icqq';
-import { format } from 'date-and-time';
+import { format } from 'date-fns';
 import { Group, GroupMemberInfo } from '../client/QQClient';
 import { NapCatFriend, NapCatGroupMember } from '../client/NapCatClient';
 import { Elysia } from 'elysia';
@@ -13,7 +13,7 @@ const logger = getLogger('Rich Header');
 
 export default new Elysia()
   .use(html())
-  .get('/:apiKey/:userId', async ({ params, error }) => {
+  .get('/richHeader/:apiKey/:userId', async ({ params, error }) => {
     try {
       const pair = Pair.getByApiKey(params.apiKey);
       if (!pair) {
@@ -58,7 +58,7 @@ export default new Elysia()
         <meta charset="UTF-8"/>
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <meta property="og:image"
-              content={`https://q1.qlogo.cn/g?b=qq&nk=${params.userId}&s=0&time=${format(now, 'YYYY-MM-DD')}`}/>
+              content={`https://q1.qlogo.cn/g?b=qq&nk=${params.userId}&s=0&time=${format(now, 'yyyy-MM-dd')}`}/>
         {
           memberInfo.title ?
             <meta property="og:site_name" content={`「${memberInfo.title}」`}/> :
@@ -169,15 +169,15 @@ export default new Elysia()
           }
           <div class="detailItem">
             <div class="secondary">加入时间</div>
-            {format(new Date(memberInfo.join_time * 1000), 'YYYY-MM-DD HH:mm')}
+            {format(new Date(memberInfo.join_time * 1000), 'yyyy-MM-dd HH:mm')}
           </div>
           <div class="detailItem">
             <div class="secondary">上次发言时间</div>
-            {format(new Date(memberInfo.last_sent_time * 1000), 'YYYY-MM-DD HH:mm')}
+            {format(new Date(memberInfo.last_sent_time * 1000), 'yyyy-MM-dd HH:mm')}
           </div>
           <div class="detailItem">
             <div class="secondary">注册时间</div>
-            {format(new Date(profile.regTimestamp * 1000), 'YYYY-MM-DD HH:mm')}
+            {format(new Date(profile.regTimestamp * 1000), 'yyyy-MM-dd HH:mm')}
           </div>
         </div>
       </div>
