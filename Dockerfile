@@ -54,9 +54,10 @@ FROM base AS build-front
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml /app/
 COPY patches /app/patches
 COPY ui/package.json /app/ui/
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store,sharing=locked pnpm install --frozen-lockfile
-COPY ui/index.html ui/tsconfig.json ui/vite.config.ts /app/ui/
-COPY ui/src /app/ui/src
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store,sharing=locked \
+    --mount=type=secret,id=npmrc,target=/root/.npmrc \
+    pnpm install --frozen-lockfile
+COPY ui/ /app/ui/
 RUN cd ui && pnpm run build
 
 FROM base
