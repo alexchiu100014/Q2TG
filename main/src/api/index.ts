@@ -4,7 +4,7 @@ import richHeader from './richHeader';
 import telegramAvatar from './telegramAvatar';
 import '@bogeychan/elysia-polyfills/node/index.js';
 import { Elysia } from 'elysia';
-import { staticPlugin } from '@elysiajs/static';
+import ui from './ui';
 
 const log = getLogger('Web Api');
 
@@ -14,26 +14,8 @@ let app = new Elysia()
     return { hello: 'Q2TG' };
   })
   .mount('/telegramAvatar', telegramAvatar)
-  .mount('/richHeader', richHeader);
-
-if (env.UI_PROXY) {
-  app = app.mount('/ui', (req) => {
-    const url = new URL(req.url);
-    const baseUrl = new URL(env.UI_PROXY);
-    url.hostname = baseUrl.hostname;
-    url.port = baseUrl.port;
-    url.protocol = baseUrl.protocol;
-    url.pathname = '/ui' + url.pathname;
-    return fetch(url.toString(), req);
-  });
-}
-else if (env.UI_PATH) {
-  app = app.use(staticPlugin({
-    prefix: '/ui',
-    assets: env.UI_PATH,
-    indexHTML: true,
-  }));
-}
+  .mount('/richHeader', richHeader)
+  .mount('/ui', ui);
 
 export default {
   startListening() {
