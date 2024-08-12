@@ -65,3 +65,35 @@ index 27a659a3290fadd990a1a980918515a6ded4978f..e1bbe1470f302c30e7adea92f433a6e3
          this.elems.unshift({
              45: {
                  1: [source.seq],
+diff --git a/lib/message/message.d.ts b/lib/message/message.d.ts
+index c4bdd4cde3de14d515ea55364bf6c5ba315a8281..0e1ef5aa876d8e4913dc7d41756c617080dd9ced 100644
+--- a/lib/message/message.d.ts
++++ b/lib/message/message.d.ts
+@@ -203,6 +203,7 @@ export declare class ForwardMessage implements Forwardable {
+     /** 消息内容 */
+     message: MessageElem[];
+     raw_message: string;
++    avatar?: string;
+     /** 反序列化一条转发消息 */
+     static deserialize(serialized: Buffer): ForwardMessage;
+     constructor(proto: pb.Proto);
+diff --git a/lib/message/message.js b/lib/message/message.js
+index dcf0238de649da2c866b354a32884d0e8389ddd4..fee8ffe09e34aa3a3d7870a0d65bc793feeb29f8 100644
+--- a/lib/message/message.js
++++ b/lib/message/message.js
+@@ -367,12 +367,13 @@ class ForwardMessage {
+         this.proto = proto;
+         this.proto = proto;
+         const head = proto[1];
+-        this.time = head[6] || 0;
++        this.time = head[6] || proto[2]?.[6] || 0;
+         this.seq = head[5];
+         this.user_id = head[1] || 0;
+-        this.nickname = head[14]?.toString() || head[9]?.[4]?.toString() || "";
++        this.nickname = head[14]?.toString() || head[9]?.[4]?.toString() || head[8]?.[4]?.toString() || "";
+         this.group_id = head[9]?.[1];
+         this.parsed = (0, parser_1.parse)(proto[3][1]);
++        this.avatar = head[20]?.[5]?.toString() || proto[2]?.[15]?.[5]?.toString();
+         this.message = this.parsed.message;
+         this.raw_message = this.parsed.brief;
+         (0, common_1.lock)(this, "proto");
