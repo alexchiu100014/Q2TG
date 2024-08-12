@@ -1,6 +1,7 @@
 import { Friend, Group, Sendable } from './index';
 import type { MessageElem } from '@icqqjs/icqq';
 import type { Receive } from 'node-napcat-ts';
+import { NapCatForwardElem } from '../NapCatClient/convert';
 
 export abstract class ChatEvent {
   protected constructor(
@@ -28,7 +29,7 @@ export class MessageEvent extends ChatEvent {
       card?: string;
     },
     chat: Friend | Group,
-    public readonly message: (MessageElem | Receive['forward'])[],
+    public readonly message: (MessageElem | NapCatForwardElem)[],
     public readonly seq: number,
     public readonly rand: number,
     public readonly pktnum: number,
@@ -39,7 +40,7 @@ export class MessageEvent extends ChatEvent {
       time: number;
       seq: number;
       rand: number;
-      message: (MessageElem | Receive['forward'])[];
+      message: (MessageElem | NapCatForwardElem)[];
     },
     public readonly anonymous: {
       name: string;

@@ -1,7 +1,7 @@
 import { MessageRet, Quotable } from '@icqqjs/icqq';
-import { ForwardMessage, Friend, Group, GroupFs, GroupMember, QQEntity, QQUser, Sendable, SendableElem } from '../QQClient';
+import { Friend, Group, GroupFs, GroupMember, QQEntity, QQUser, Sendable, SendableElem } from '../QQClient';
 import { NapCatClient } from './client';
-import { messageElemToNapCatSendable, napCatReceiveToMessageElem } from './convert';
+import { messageElemToNapCatSendable, napCatForwardMultiple, napCatReceiveToMessageElem } from './convert';
 import { getLogger, Logger } from 'log4js';
 import posthog from '../../models/posthog';
 import { Send } from 'node-napcat-ts';
@@ -17,16 +17,9 @@ export abstract class NapCatEntity implements QQEntity {
   abstract dm: boolean;
 
   async getForwardMsg(resid: string, fileName?: string) {
-    const data = await this.client.callApi('get_forward_msg', { messager_id: resid });
-    return data.messages.map(it => (<ForwardMessage>{
-      group_id: it.message_type === 'group' ? it.group_id : undefined,
-      nickname: it.sender.card || it.sender.nickname,
-      time: it.time,
-      user_id: it.sender.user_id,
-      seq: it.message_id,
-      raw_message: it.raw_message,
-      message: (it as any).content.map(napCatReceiveToMessageElem),
-    }));
+    // @ts-ignore
+    const data = await this.client.callApi('get_forward_msg', { message_id: resid });
+    return napCatForwardMultiple(data.messages);
   }
 
   async getVideoUrl(fid: string, md5?: string | Buffer): Promise<string> {

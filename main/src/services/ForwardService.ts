@@ -35,7 +35,7 @@ import { CustomFile } from 'telegram/client/uploads';
 import flags from '../constants/flags';
 import BigInteger from 'big-integer';
 import pastebin from '../utils/pastebin';
-import { Group, MessageEvent, QQClient, Sendable, SendableElem } from '../client/QQClient';
+import { ForwardMessage, Group, MessageEvent, QQClient, Sendable, SendableElem } from '../client/QQClient';
 import posthog from '../models/posthog';
 import { NapCatClient } from '../client/NapCatClient';
 import fsP from 'fs/promises';
@@ -142,17 +142,20 @@ export default class ForwardService {
           messageHeader = '';
         }
       };
-      const useForward = async (resId: string, fileName?: string) => {
-        if (env.WEB_ENDPOINT) {
+      const useForward = async (resId: string, fileName?: string, messages?: ForwardMessage[]) => {
+        if (!messages) {
           try {
-            const messages = await pair.qq.getForwardMsg(resId, fileName);
-            message = helper.generateForwardBrief(messages);
+            messages = await pair.qq.getForwardMsg(resId, fileName);
           }
           catch (e) {
             posthog.capture('转发多条消息（无法获取）', { error: e });
             message = '[<i>转发多条消息（无法获取）</i>]';
           }
+        }
+        if (messages)
+          message = helper.generateForwardBrief(messages);
 
+        if (env.WEB_ENDPOINT) {
           const dbEntry = await db.forwardMultiple.create({
             data: { resId, fileName, fromPairId: pair.dbId },
           });
@@ -161,28 +164,21 @@ export default class ForwardService {
           buttons.push(Button.url('📃查看', viewerUrl));
         }
         else if (env.CRV_API) {
-          try {
-            const messages = await pair.qq.getForwardMsg(resId, fileName);
-            message = helper.generateForwardBrief(messages);
-            const hash = md5Hex(resId);
-            const viewerUrl = env.CRV_VIEWER_APP ? `${env.CRV_VIEWER_APP}?startapp=${hash}` : `${env.CRV_API}/?hash=${hash}`;
-            buttons.push(Button.url('📃查看', viewerUrl));
-            // 传到 Cloudflare
-            axios.post(`${env.CRV_API}/add`, {
-              auth: env.CRV_KEY,
-              key: hash,
-              data: messages,
-            })
-              .then(data => this.log.trace('上传消息记录到 Cloudflare', data.data))
-              .catch(e => {
-                this.log.error('上传消息记录到 Cloudflare 失败', e);
-                posthog.capture('上传消息记录到 Cloudflare 失败', { error: e });
-              });
-          }
-          catch (e) {
-            posthog.capture('转发多条消息（无法获取）', { error: e });
-            message = '[<i>转发多条消息（无法获取）</i>]';
-          }
+          if (!message) return;
+          const hash = md5Hex(resId);
+          const viewerUrl = env.CRV_VIEWER_APP ? `${env.CRV_VIEWER_APP}?startapp=${hash}` : `${env.CRV_API}/?hash=${hash}`;
+          buttons.push(Button.url('📃查看', viewerUrl));
+          // 传到 Cloudflare
+          axios.post(`${env.CRV_API}/add`, {
+            auth: env.CRV_KEY,
+            key: hash,
+            data: messages,
+          })
+            .then(data => this.log.trace('上传消息记录到 Cloudflare', data.data))
+            .catch(e => {
+              this.log.error('上传消息记录到 Cloudflare 失败', e);
+              posthog.capture('上传消息记录到 Cloudflare 失败', { error: e });
+            });
         }
         else {
           message = '[<i>转发多条消息（未配置）</i>]';
@@ -199,16 +195,18 @@ export default class ForwardService {
         let url: string,
           shouldBreak = false;
         switch (elem.type) {
+          case 'markdown':
           case 'text': {
+            let text = elem.type === 'text' ? elem.text : elem.content;
             // 判断微信文章
             const WECHAT_ARTICLE_REGEX = /https?:\/\/mp\.weixin\.qq\.com\/[0-9a-zA-Z\-_+=&?#\/]+/;
-            if (WECHAT_ARTICLE_REGEX.test(elem.text)) {
+            if (WECHAT_ARTICLE_REGEX.test(text)) {
               const instantViewUrl = new URL('https://t.me/iv');
-              instantViewUrl.searchParams.set('url', WECHAT_ARTICLE_REGEX.exec(elem.text)[0]);
+              instantViewUrl.searchParams.set('url', WECHAT_ARTICLE_REGEX.exec(text)[0]);
               instantViewUrl.searchParams.set('rhash', '45756f9b0bb3c6');
               message += `<a href="${instantViewUrl}">\u200e</a>`;
             }
-            message += helper.htmlEscape(elem.text);
+            message += helper.htmlEscape(text);
             break;
           }
           case 'at': {
@@ -415,6 +413,9 @@ export default class ForwardService {
             break;
           case 'location':
             message = `[<i>位置</i>] ${helper.htmlEscape(elem.name)}\n${helper.htmlEscape(elem.address)}`;
+            break;
+          case 'forward':
+            await useForward(elem.id, '', elem.content);
             break;
         }
         if (shouldBreak) break;

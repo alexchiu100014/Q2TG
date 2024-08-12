@@ -1,5 +1,5 @@
-import type { Receive, Send } from 'node-napcat-ts';
-import { SendableElem } from '../QQClient';
+import type { Receive, Send, WSSendReturn } from 'node-napcat-ts';
+import { ForwardMessage, SendableElem } from '../QQClient';
 import { MessageElem } from '@icqqjs/icqq';
 import { file as createTempFileBase, FileResult } from 'tmp-promise';
 import fsP from 'fs/promises';
@@ -74,7 +74,13 @@ export const messageElemToNapCatSendable = async (elem: SendableElem): Promise<{
   }
 };
 
-export const napCatReceiveToMessageElem = (data: Receive[keyof Receive]): MessageElem | Receive['forward'] => {
+export type NapCatForwardElem = {
+  type: 'forward',
+  id: string,
+  content: ForwardMessage[],
+}
+
+export const napCatReceiveToMessageElem = (data: Receive[keyof Receive]): MessageElem | NapCatForwardElem => {
   switch (data.type) {
     case 'text':
     case 'face':
@@ -122,7 +128,11 @@ export const napCatReceiveToMessageElem = (data: Receive[keyof Receive]): Messag
         type: data.type,
       };
     case 'forward':
-      return data;
+      return {
+        type: 'forward',
+        id: data.data.id as any,
+        content: 'content' in data.data ? napCatForwardMultiple(data.data.content as any) : undefined,
+      };
     case 'reply':
       throw new Error('不出意外这个应该提前处理');
     case 'music':
@@ -132,3 +142,13 @@ export const napCatReceiveToMessageElem = (data: Receive[keyof Receive]): Messag
       throw new Error('不支持此元素');
   }
 };
+
+export const napCatForwardMultiple = (messages: WSSendReturn['get_forward_msg']['messages']): ForwardMessage[] => messages.map(it => ({
+  group_id: it.message_type === 'group' ? it.group_id : undefined,
+  nickname: it.sender.card || it.sender.nickname,
+  time: it.time,
+  user_id: it.sender.user_id,
+  seq: it.message_id,
+  raw_message: it.raw_message,
+  message: ((it as any).content || (it as any).message).map(napCatReceiveToMessageElem),
+}));
