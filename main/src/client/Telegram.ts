@@ -48,7 +48,7 @@ export default class Telegram {
         connectionRetries: 20,
         langCode: 'zh',
         deviceModel: `${appName} On ${os.hostname()}`,
-        appVersion: 'rainbowcat',
+        appVersion: 'sleepyfox',
         useIPV6: !!env.IPV6,
         proxy: env.PROXY_IP ? {
           socksType: 5,

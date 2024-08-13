@@ -133,9 +133,9 @@ export default class OicqClient extends QQClient {
         const device = {
           product: 'Q2TG',
           device: 'ANGELKAWAII2',
-          board: 'rainbowcat',
+          board: 'sleepyfox',
           brand: random.pick('GOOGLE', 'XIAOMI', 'HUAWEI', 'SAMSUNG', 'SONY'),
-          model: 'rainbowcat',
+          model: 'sleepyfox',
           wifi_ssid: random.pick('OpenWrt', `Redmi-${random.hex(4).toUpperCase()}`,
             `MiWifi-${random.hex(4).toUpperCase()}`, `TP-LINK-${random.hex(6).toUpperCase()}`),
           bootloader: random.pick('U-Boot', 'GRUB', 'gummiboot'),
