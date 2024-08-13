@@ -10,7 +10,9 @@ import q2tgServlet from './q2tgServlet';
 const log = getLogger('Web Api');
 
 let app = new Elysia()
-  .onError(log.error.bind(log))
+  .onError(error => {
+    log.error(error.request.method, error.request.url, error.error.message);
+  })
   .get('/', () => {
     return { hello: 'Q2TG' };
   })

@@ -190,7 +190,7 @@ export default class ConfigService {
       // 关联写入数据库
       const chatForBot = await this.tgBot.getChat(chat.id);
       status && await status.edit({ text: '正在写数据库…' });
-      const dbPair = await this.instance.forwardPairs.add(room, chatForBot, chat);
+      const dbPair = await this.instance.forwardPairs.add(room, chatForBot, chat, this.oicq);
       isFinish = true;
 
       // 更新头像
@@ -246,7 +246,7 @@ export default class ConfigService {
         const qGroup = await this.oicq.getChat(qqRoomId) as Group;
         const tgChat = await this.tgBot.getChat(tgChatId);
         const tgUserChat = await this.tgUser.getChat(tgChatId);
-        await this.instance.forwardPairs.add(qGroup, tgChat, tgUserChat);
+        await this.instance.forwardPairs.add(qGroup, tgChat, tgUserChat, this.oicq);
         await tgChat.sendMessage(`QQ群：${qGroup.name} (<code>${qGroup.gid}</code>)已与 ` +
           `Telegram 群 ${(tgChat.entity as Api.Channel).title} (<code>${tgChatId}</code>)关联`);
         if (!(tgChat.entity instanceof Api.Channel)) {

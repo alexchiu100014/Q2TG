@@ -26,11 +26,13 @@ import { escapeXml, gzip, timestamp } from '@icqqjs/icqq/lib/common';
 import { pb } from '@icqqjs/icqq/lib/core';
 import env from '../models/env';
 import {
-  CreateQQClientParamsBase, Friend, FriendIncreaseEvent, GroupMemberDecreaseEvent,
+  CreateQQClientParamsBase, ForwardMessage, Friend, FriendIncreaseEvent, GroupMemberDecreaseEvent,
   GroupMemberIncreaseEvent,
   MessageEvent, MessageRecallEvent, PokeEvent,
   QQClient,
 } from './QQClient';
+import { getLogger, Logger } from 'log4js';
+import posthog from '../models/posthog';
 
 const LOG_LEVEL: LogLevel = env.OICQ_LOG_LEVEL;
 
@@ -52,11 +54,13 @@ export interface CreateOicqParams extends CreateQQClientParamsBase {
 // OicqExtended??
 export default class OicqClient extends QQClient {
   public readonly oicq: Client;
+  private readonly log: Logger;
 
   private constructor(uin: number, id: number, conf?: Config,
                       public readonly signDockerId?: string) {
     super(id);
     this.oicq = new Client(conf);
+    this.log = getLogger(`OicqClient - ${id}`);
   }
 
   public get uin() {
@@ -337,5 +341,83 @@ export default class OicqClient extends QQClient {
         }<hr hidden="false" style="0" /><summary size="26" color="#777777">请谨慎查看</summary
 ></item><source name="Q2TG" icon="" action="" appid="-1" /></msg>`.replaceAll('\n', ''),
     } as XmlElem] as any;
+  }
+
+  private rKeyCache = null as { offNTPicRkey: string, groupNTPicRkey: string };
+
+  public async getNTPicRKey() {
+    if (!this.rKeyCache) {
+      // https://github.com/Icalingua-plus-plus/oicq-icalingua-plus-plus/blob/a8fa0e6e2448a626491cf365e1beb23f2e82a509/lib/message/image.js#L718
+      const body = pb.encode({
+        1: {
+          1: {
+            1: 1,
+            2: 202,
+          },
+          2: {
+            101: 2,
+            102: 1,
+            200: 0,
+          },
+          3: {
+            1: 2,
+          },
+        },
+        4: {
+          1: [10, 20],
+          2: 2,
+        },
+      });
+      const ret = {
+        offNTPicRkey: '',
+        groupNTPicRkey: '',
+      };
+
+      try {
+        const rsp = await this.oicq.sendOidbSvcTrpcTcp('OidbSvcTrpcTcp.0x9067_202', body);
+        const rkeys = rsp[4][1];
+        if (!rkeys)
+          throw new Error('rkey 不存在');
+        const rkeyType = {
+          10: 'offNTPicRkey',
+          20: 'groupNTPicRkey',
+        };
+        for (const v of rkeys) {
+          ret[rkeyType[v[5]]] = v[1].toString().substring('&rkey='.length);
+        }
+      }
+      catch (e) {
+        this.log.warn('获取 QQNT Rkey 失败', e.message);
+        posthog.capture('获取 QQNT Rkey 失败', { error: e.message });
+      }
+
+      this.rKeyCache = ret;
+    }
+    return this.rKeyCache;
+  }
+
+  public async refreshImageRKey(messages: ForwardMessage[]) {
+    const rKey = await this.getNTPicRKey();
+    if (!rKey) {
+      this.log.warn('未获取到 QQNT Rkey，无法刷新图片 rkey');
+    }
+    for (const message of messages) {
+      for (const element of message.message) {
+        if (element.type !== 'image') continue;
+        if (!element.url) continue;
+        const url = new URL(element.url);
+        if (url.host !== 'multimedia.nt.qq.com.cn') continue;
+
+        switch (url.searchParams.get('appid')) {
+          case '1406':
+            url.searchParams.set('rkey', rKey.offNTPicRkey);
+            break;
+          case '1407':
+            url.searchParams.set('rkey', rKey.groupNTPicRkey);
+            break;
+        }
+        element.url = url.toString();
+      }
+    }
   }
 }

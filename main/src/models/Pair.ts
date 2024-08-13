@@ -1,5 +1,5 @@
 import { getLogger } from 'log4js';
-import { Friend, Group } from '../client/QQClient';
+import { Friend, Group, QQClient } from '../client/QQClient';
 import TelegramChat from '../client/TelegramChat';
 import getAboutText from '../utils/getAboutText';
 import { md5 } from '../utils/hashing';
@@ -32,6 +32,7 @@ export class Pair {
     public dbId: number,
     private _flags: number,
     public readonly apiKey: string,
+    public readonly qqClient: QQClient,
   ) {
     if (apiKey) {
       Pair.apiKeyMap.set(apiKey, this);

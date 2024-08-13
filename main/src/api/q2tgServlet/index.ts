@@ -1,6 +1,7 @@
 import { Elysia, t } from 'elysia';
 import db from '../../models/db';
 import { Pair } from '../../models/Pair';
+import OicqClient from '../../client/OicqClient';
 
 const forwardCache = new Map<string, any>();
 
@@ -13,7 +14,11 @@ let app = new Elysia()
         where: { id: uuid },
       });
       const pair = Pair.getByDbId(data.fromPairId);
-      forwardCache.set(uuid, await pair.qq.getForwardMsg(data.resId, data.fileName));
+      const messages = await pair.qq.getForwardMsg(data.resId, data.fileName);
+      if (pair.qqClient instanceof OicqClient) {
+        await pair.qqClient.refreshImageRKey(messages);
+      }
+      forwardCache.set(uuid, messages);
 
       setTimeout(() => {
         forwardCache.delete(uuid);
