@@ -5,7 +5,7 @@ QQ 群与 Telegram 群相互转发的 bot
 
 ## 安装方法
 
-请看 [手册](https://kb.0w.al/文档/Q2TG/安装部署)
+请看 [手册](https://kb.0w.al/文档/Q2TG/安装部署)，[从 V3 更新到 V4](https://kb.0w.al/文档/Q2TG/从%20V3%20更新到%20V4)
 
 v2.x 及以上版本同时需要机器人账号以及登录 Telegram 个人账号，需要自己注册 Telegram API ID，并且还需要配置一些辅助服务。
 
