@@ -133,7 +133,7 @@ export default class ForwardService {
       const useSticker = (file: FileLike) => {
         files.push(file);
         if (!event.dm) {
-          if ((pair.flags | this.instance.flags) & flags.RICH_HEADER && env.WEB_ENDPOINT) {
+          if (!((pair.flags | this.instance.flags) & flags.NO_RICH_HEADER) && env.WEB_ENDPOINT) {
             buttons.push(Button.url(`${sender}:`, helper.generateRichHeaderUrl(pair.apiKey, event.from.id, messageHeader)));
           }
           else {
@@ -471,7 +471,7 @@ export default class ForwardService {
       else if (files.length) {
         messageToSend.file = files;
       }
-      else if (!event.dm && (pair.flags | this.instance.flags) & flags.RICH_HEADER && env.WEB_ENDPOINT
+      else if (!event.dm && !((pair.flags | this.instance.flags) & flags.NO_RICH_HEADER) && env.WEB_ENDPOINT
         // 当消息包含链接时不显示 RICH HEADER
         && !isContainsUrl(message)) {
         // 没有文件时才能显示链接预览
