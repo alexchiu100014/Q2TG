@@ -110,7 +110,7 @@ export default class ForwardService {
   }
 
   public async forwardFromQq(event: MessageEvent, pair: Pair) {
-    const tempFiles: FileResult[] = [];
+    const tempFiles: FileResult[] = [], messageToSend: SendMessageParams = {};
     try {
       let message = '',
         files: FileLike[] = [],
@@ -463,10 +463,8 @@ export default class ForwardService {
 
       let richHeaderUsed = false;
       // 发送消息
-      const messageToSend: SendMessageParams = {
-        forceDocument: forceDocument as any, // 恼
-        linkPreview,
-      };
+      messageToSend.forceDocument = forceDocument as any; // 恼
+      messageToSend.linkPreview = linkPreview;
       if (files.length === 1) {
         messageToSend.file = files[0];
       }
@@ -553,6 +551,7 @@ export default class ForwardService {
         pbUrl = await pastebin.upload(JSON.stringify({
           error,
           event,
+          messageToSend,
         }));
       }
       catch (e) {
