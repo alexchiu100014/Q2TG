@@ -184,7 +184,7 @@ export default class ForwardService {
           message = '[<i>转发多条消息（未配置）</i>]';
         }
       };
-      for (let elem of event.message) {
+      messageElemLoop: for (let elem of event.message) {
         if (elem.type === 'flash' && (pair.flags | this.instance.flags) & flags.NO_FLASH_PIC) {
           message += '<i>[闪照]</i>';
           elem = {
@@ -192,8 +192,7 @@ export default class ForwardService {
             type: 'image',
           };
         }
-        let url: string,
-          shouldBreak = false;
+        let url: string;
         switch (elem.type) {
           case 'markdown':
           case 'text': {
@@ -231,9 +230,8 @@ export default class ForwardService {
           case 'face':
             // 判断 tgs 表情
             const tgs = this.getStickerByQQFaceId(elem.id as number);
-            if (tgs) {
+            if (tgs && event.message.filter(it => it.type !== 'at').length === 1) {
               useSticker(tgs);
-              break;
             }
           case 'sface': {
             if (typeof elem.text !== 'string') {
@@ -377,8 +375,7 @@ export default class ForwardService {
                 await useForward(result.resId, result.fileName);
                 break;
             }
-            shouldBreak = true;
-            break;
+            break messageElemLoop;
           }
           case 'xml': {
             const result = helper.processXml(elem.data);
@@ -401,8 +398,7 @@ export default class ForwardService {
                 await useForward(result.resId);
                 break;
             }
-            shouldBreak = true;
-            break;
+            break messageElemLoop;
           }
           case 'rps':
           case 'dice':
@@ -418,7 +414,6 @@ export default class ForwardService {
             await useForward(elem.id, '', elem.content);
             break;
         }
-        if (shouldBreak) break;
       }
       message = message.trim();
 
