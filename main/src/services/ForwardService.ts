@@ -374,6 +374,24 @@ export default class ForwardService {
               case 'forward':
                 await useForward(result.resId, result.fileName);
                 break;
+              case 'location':
+                const convertedLoc = eviltransform.gcj2wgs(result.lat, result.lng);
+                files.push(new Api.InputMediaVenue({
+                  address: result.address,
+                  title: messageHeader.replace('<b>', '').replace('</b>', ''),
+                  geoPoint: new Api.InputGeoPoint({
+                    lat: convertedLoc.lat,
+                    long: convertedLoc.lng,
+                  }),
+                  provider: 'Q2TG',
+                  venueId: 'Q2TG',
+                  venueType: 'Q2TG',
+                }));
+                // 电脑 tg 不会显示地图的 caption
+                messageHeader = '';
+                // 这里用火星坐标
+                message = `<a href="https://uri.amap.com/marker?position=${result.lng},${result.lat}">在高德地图中查看</a>`;
+                break;
             }
             break messageElemLoop;
           }

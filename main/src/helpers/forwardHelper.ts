@@ -106,6 +106,20 @@ export default {
         posthog.capture('解析转发消息时出错', { error: err });
       }
     }
+    else if (jsonObj.app === 'com.tencent.map') {
+      try {
+        const location = jsonObj.meta?.['Location.Search'];
+        return {
+          type: 'location',
+          address: location.address,
+          lat: location.lat,
+          lng: location.lng,
+        };
+      }
+      catch (err) {
+        posthog.capture('解析定位时出错', { error: err });
+      }
+    }
     let appurl: string;
     const biliRegex = /(https?:\\?\/\\?\/b23\.tv\\?\/\w*)\??/;
     const zhihuRegex = /(https?:\\?\/\\?\/\w*\.?zhihu\.com\\?\/[^?"=]*)\??/;
@@ -127,7 +141,7 @@ export default {
     }
     else {
       // TODO 记录无法解析的 JSON
-      return { type: 'text', text: '[JSON]' };
+      return { type: 'text', text: `[JSON] ${jsonObj?.app}` };
     }
   },
 
