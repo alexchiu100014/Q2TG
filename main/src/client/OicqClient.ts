@@ -269,7 +269,7 @@ export default class OicqClient extends QQClient {
     }
     for (const maker of makers)
       imgs = [...imgs, ...maker.imgs];
-    const contact = await (dm ? this.pickFriend : this.pickGroup)(this.oicq.uin);
+    const contact = await (dm ? this.pickFriend : this.pickGroup).bind(this)(this.oicq.uin);
     if (imgs.length)
       await contact.uploadImages(imgs);
     const compressed = await gzip(pb.encode({
