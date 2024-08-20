@@ -16,6 +16,14 @@ services:
       POSTGRES_PASSWORD: password
     volumes:
       - postgresql:/var/lib/postgresql/data
+      
+  tunnel:
+    container_name: cloudflared-tunnel
+    image: cloudflare/cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN= #此處填入Cloudflare Tunnel生成的key
 
   sign:
     image: xzhouqd/qsign:core-1.1.9
